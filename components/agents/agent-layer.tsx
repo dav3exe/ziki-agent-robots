@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Pin, PinOff, X } from "lucide-react";
+import { Pin, PinOff, Play, X } from "lucide-react";
 import { setDockOpen, setPinned, useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS, type AgentBot, type AgentState, STAGES, STATE_LABEL } from "@/lib/agents";
 import { Painter } from "./painter";
@@ -233,7 +233,7 @@ export default function AgentLayer() {
               type="button"
               onClick={() => setPinned(false)}
               title="Unpin the robots"
-              className="flex items-center gap-1 rounded-md border border-zk-accent/60 px-1.5 py-0.5 font-semibold text-zk-accent"
+              className="flex cursor-pointer items-center gap-1 rounded-md border border-zk-accent/60 bg-zk-accent/10 px-1.5 py-0.5 font-semibold text-zk-accent transition hover:bg-zk-accent/25 active:scale-[0.97]"
             >
               <PinOff className="size-3" /> Pinned
             </button>
@@ -253,7 +253,7 @@ export default function AgentLayer() {
                 aria-pressed={prefs.pinned}
                 onClick={() => setPinned(!prefs.pinned)}
                 title={prefs.pinned ? "Unpin the robots" : "Keep the robots at the end of the page when this is closed"}
-                className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold ${prefs.pinned ? "border-zk-accent/60 text-zk-accent" : "border-zk-border text-zk-text2"}`}
+                className={`flex cursor-pointer items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold transition active:scale-[0.97] ${prefs.pinned ? "border-zk-accent/60 bg-zk-accent/10 text-zk-accent hover:bg-zk-accent/25" : "border-zk-border bg-zk-tint text-zk-text hover:border-zk-accent hover:bg-zk-accent/15"}`}
               >
                 {prefs.pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
                 {prefs.pinned ? "Pinned" : "Pin"}
@@ -284,7 +284,7 @@ export default function AgentLayer() {
                       <Link
                         href={a.issueId ? `/issues/${a.issueId}` : "/issues?status=open"}
                         onClick={() => setDockOpen(false)}
-                        className={`shrink-0 rounded-[10px] px-2.5 py-1.5 text-xs font-semibold ${g.urgent ? "bg-zk-blue text-white" : "border border-zk-border text-zk-text"}`}
+                        className={`${BUTTON} shrink-0 ${g.urgent ? "bg-zk-blue text-white hover:brightness-110" : SECONDARY}`}
                       >
                         {rowAction(a)}
                       </Link>
@@ -345,6 +345,11 @@ function Head({ agent }: { agent: Shown }) {
 
 type Shown = AgentBot & { now: AgentState };
 
+// Every button in the dock looks pressable: a pointer, a hover change, a press, and a focus ring.
+const BUTTON =
+  "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-semibold shadow-sm transition active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-zk-accent focus-visible:outline-none";
+const SECONDARY = "border border-zk-border bg-zk-tint text-zk-text hover:border-zk-accent hover:bg-zk-accent/15";
+
 const GROUPS = [
   { title: "Needs you", urgent: true, has: (s: AgentState) => s === "escalating" },
   { title: "Working", urgent: false, has: (s: AgentState) => s === "working" || s === "reviewing" },
@@ -402,14 +407,14 @@ function AgentCard({ agent, bottom, align, onClose, onMood }: { agent: Shown; bo
       <p className="mt-1 text-zk-text2">{agent.detail}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {agent.now === "escalating" && agent.issueId ? (
-          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className="rounded-[10px] bg-zk-blue px-3 py-1.5 text-xs font-semibold text-white">Open #{agent.issueId}</Link>
+          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className={`${BUTTON} bg-zk-blue text-white hover:brightness-110`}>Open #{agent.issueId}</Link>
         ) : agent.now !== "idle" && agent.issueId ? (
-          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className="rounded-[10px] border border-zk-border px-3 py-1.5 text-xs font-semibold">Open the issue</Link>
+          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className={`${BUTTON} ${SECONDARY}`}>Open the issue</Link>
         ) : (
-          <Link href="/issues?status=open" onClick={onClose} className="rounded-[10px] border border-zk-border px-3 py-1.5 text-xs font-semibold">Give it an issue</Link>
+          <Link href="/issues?status=open" onClick={onClose} className={`${BUTTON} ${SECONDARY}`}>Give it an issue</Link>
         )}
-        <button type="button" onClick={onMood} className="rounded-[10px] border border-dashed border-zk-accent/60 px-3 py-1.5 text-xs font-semibold text-zk-accent">
-          Play a mood
+        <button type="button" onClick={onMood} className={`${BUTTON} border border-zk-accent/60 bg-zk-accent/10 text-zk-accent hover:border-zk-accent hover:bg-zk-accent/25`}>
+          <Play className="size-3 fill-current" /> Play a mood
         </button>
       </div>
     </div>
