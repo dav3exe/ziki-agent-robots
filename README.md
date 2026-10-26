@@ -17,7 +17,8 @@ The Ziki screens behind the robots come from a separate mock-up,
 | Idle | wanders | yawns and stretches, power nap, peers at an issue card, kicks a bolt, self-check scan, trips and dusts off |
 
 - **Hover** a robot to see its task. **Click** it for its status, links and a "Play a mood" button.
-- **Agents menu** in the header: show or hide each robot, and set moods to Off, Calm or Lively.
+- **Agents menu** in the header: show or hide each robot, and set moods to Off, Calm or Lively. A first visit
+  shows two robots, Agent Turbo and Derico; Smithy and Nova can be ticked on.
 - **Layout:** one robot stands at the left; two stand at opposite edges (an idle one walks between its edge and
   the middle); three or more line up from the left and close the gap when one is hidden.
 - **Far moves are a run**, with a forward lean and arms swinging opposite to the legs.

@@ -62,7 +62,7 @@ export default function ProposalPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li><b className="text-zk-text">Hover a robot</b> to see its task. <b className="text-zk-text">Click it</b> for its status, links and a “Play a mood” button.</li>
           <li><b className="text-zk-text">Agents menu</b> in the header: show or hide each robot, and set moods to Off, Calm or Lively.</li>
-          <li><b className="text-zk-text">Hide some robots</b> and watch the rest line up. One stands at the left, two take the two edges, three or more line up from the left.</li>
+          <li><b className="text-zk-text">Two robots to start</b>, one at each edge. Tick Smithy and Nova on in the Agents menu and watch them line up: one stands at the left, two take the two edges, three or more line up from the left.</li>
           <li><b className="text-zk-text">Far moves are a run</b>, not a slow walk, so robots never take long to reach their place.</li>
         </ul>
       </section>
