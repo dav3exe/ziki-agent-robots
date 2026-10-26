@@ -20,7 +20,7 @@ const VISOR: Record<AgentState, string> = { working: "#5aa2ff", reviewing: "#7fe
 
 const AGENTS = AGENT_BOTS.map((b) => ({ ...b, now: b.state }));
 
-/** Your agents in a dock at the bottom right: a small button with their heads, which opens to a floor where they work as pixel-art robots. Hover a robot for its task, click for more. */
+/** Your agents in a dock at the bottom right: a small button with their heads, which opens to a floor where they work as pixel-art robots. Hover a robot for its full card, click it to keep the card open. */
 export default function AgentLayer() {
   const prefs = useAgentPrefs();
   const agents = AGENTS;
@@ -41,6 +41,7 @@ export default function AgentLayer() {
   const insetOf = (i: number) => insets[i - leftCount];
   const waiting = visible.filter((a) => a.now === "escalating");
   const [hover, setHover] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [open, setOpen] = useState<string | null>(null);
   // The hover bubble and the open card each keep their own alignment, so hovering one robot never moves another robot's card.
   const [hoverAlign, setHoverAlign] = useState("-translate-x-4");
@@ -140,7 +141,7 @@ export default function AgentLayer() {
         const anchor = anchors.current.get(rt.bot.id);
         if (anchor) anchor.style.left = `${Math.round(rt.x * SCALE)}px`;
       }
-      drawRipples(ctx, ripples, t);
+      drawRipples(ctx, ripples, t, document.documentElement.dataset.theme === "light" ? "214,48,48" : "255,255,255");
       if (!still) frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
@@ -150,11 +151,14 @@ export default function AgentLayer() {
     };
   }, [visible.length, key, active, dockOpen]);
 
+  useEffect(() => () => clearTimeout(timer.current), []);
+
   useEffect(() => {
-    if (!open && !dockOpen) return;
+    if (!open && !hover && !dockOpen) return;
     const close = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (open) setOpen(null);
+      else if (hover) setHover(null);
       else setDockOpen(false);
     };
     // A click outside the open card closes the card; a click outside the whole dock closes the dock too. A robot or its list row is left alone, since it opens (or closes) its own card, and the Agents pill toggles the dock itself.
@@ -170,7 +174,7 @@ export default function AgentLayer() {
       window.removeEventListener("keydown", close);
       document.removeEventListener("pointerdown", away, true);
     };
-  }, [open, dockOpen]);
+  }, [open, hover, dockOpen]);
 
   if (visible.length === 0) return null;
   const px = (n: number) => `${n * SCALE}px`;
@@ -185,17 +189,30 @@ export default function AgentLayer() {
     const rt = runtimes.current.get(id);
     if (rt) rt.forceMood = true;
   };
-  const show = (id: string) => {
-    setHoverAlign(alignAt(id));
-    setHover(id);
+  // Hovering a robot opens its full card. A short delay either way keeps the card up while the cursor crosses the gap from the robot into it, and stops cards flashing as the cursor passes over robots.
+  const later = (fn: () => void, ms: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(fn, ms);
+  };
+  const stay = () => clearTimeout(timer.current);
+  const show = (id: string) =>
+    later(() => {
+      setHoverAlign(alignAt(id));
+      setHover(id);
+    }, hover ? 0 : 120);
+  const hide = () => later(() => setHover(null), 250);
+  const closeCards = () => {
+    clearTimeout(timer.current);
+    setOpen(null);
+    setHover(null);
   };
   const pick = (id: string) => {
+    clearTimeout(timer.current);
     setOpenAlign(alignAt(id));
     setOpen(open === id ? null : id);
   };
   const toggleDock = () => {
-    setOpen(null);
-    setHover(null);
+    closeCards();
     setDockOpen(!dockOpen);
   };
 
@@ -222,16 +239,18 @@ export default function AgentLayer() {
                   type="button"
                   aria-label={`${a.name}, ${STATE_LABEL[a.now]}: ${a.task}`}
                   onMouseEnter={() => show(a.id)}
-                  onMouseLeave={() => setHover((h) => (h === a.id ? null : h))}
+                  onMouseLeave={hide}
                   onFocus={() => show(a.id)}
-                  onBlur={() => setHover((h) => (h === a.id ? null : h))}
+                  onBlur={hide}
                   onClick={() => pick(a.id)}
                   data-agent-trigger
                   className="absolute bottom-0 -translate-x-1/2 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zk-accent"
                   style={{ width: px(HIT_W), height: px(HIT_H) }}
                 />
-                {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={hoverAlign} />}
-                {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={openAlign} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
+                {hover === a.id && open !== a.id && (
+                  <AgentCard agent={a} bottom={px(HIT_H + 4)} align={hoverAlign} z="z-30" onClose={closeCards} onMood={() => playMood(a.id)} onEnter={stay} onLeave={hide} />
+                )}
+                {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={openAlign} z="z-20" onClose={closeCards} onMood={() => playMood(a.id)} />}
               </div>
             ))}
           </div>
@@ -397,20 +416,23 @@ function StateChip({ state }: { state: AgentState }) {
   return <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${tone}`}>{STATE_LABEL[state]}</span>;
 }
 
-function Hover({ agent, bottom, align }: { agent: Shown; bottom: string; align: string }) {
+/** A robot's full card: task, detail and its buttons. It opens on hover (onEnter and onLeave keep it up while the cursor is inside it) or stays open once the robot is clicked. */
+function AgentCard({
+  agent, bottom, align, z, onClose, onMood, onEnter, onLeave,
+}: {
+  agent: Shown; bottom: string; align: string; z: string; onClose: () => void; onMood: () => void; onEnter?: () => void; onLeave?: () => void;
+}) {
   return (
-    <div role="tooltip" className={`absolute z-30 w-60 ${align} rounded-lg border border-zk-border bg-zk-surface px-3 py-2 text-xs shadow-lg`} style={{ bottom }}>
-      <p className="flex items-center justify-between gap-2 font-semibold text-zk-text">
-        {agent.name} <StateChip state={agent.now} />
-      </p>
-      <p className="mt-1 text-zk-text2">{agent.task}</p>
-    </div>
-  );
-}
-
-function AgentCard({ agent, bottom, align, onClose, onMood }: { agent: Shown; bottom: string; align: string; onClose: () => void; onMood: () => void }) {
-  return (
-    <div role="dialog" aria-label={agent.name} className={`pointer-events-auto absolute z-20 w-72 ${align} rounded-xl border border-zk-border bg-zk-surface p-4 text-sm shadow-xl`} style={{ bottom }}>
+    <div
+      role="dialog"
+      aria-label={agent.name}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onFocus={onEnter}
+      onBlur={onLeave}
+      className={`pointer-events-auto absolute ${z} w-72 ${align} rounded-xl border border-zk-border bg-zk-surface p-4 text-sm shadow-xl`}
+      style={{ bottom }}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold">{agent.name}</span>
         <span className="flex items-center gap-2">
