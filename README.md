@@ -22,8 +22,12 @@ The Ziki screens behind the robots copy Ziki as it is today. This repo is only a
   come: Proposal, Active, Merge-ready, Staging, Live.
 - **Pin** (in the dock header, or "Keep robots on screen" in the Agents menu) puts the robots in a footer at the end
   of the page, below the last content, so they stay in view without covering anything. Unpin to take them out.
-- **Hover** a robot to see its task; the bubble always shows on top. **Click** it for its status, links and a
-  "Play a mood" button. A click outside the card closes it, and a click outside the dock closes the dock.
+- **Hover** a robot and its full card opens at once: the task, the detail, its action button and "Play a mood". The
+  card stays up while the cursor moves into it, so you can click its buttons, and closes shortly after the cursor
+  leaves. **Click** a robot to keep its card open. A click outside the card closes it, and a click outside the dock
+  closes the dock.
+- **Light and dark.** The sun and moon button in the header switches the look. Dark is the default (it is what Ziki
+  looks like), and your choice is remembered in the browser.
 - **Agents menu** in the header: show or hide the dock and each robot, and set moods to Off, Calm or Lively. A first visit
   shows two robots, Agent Turbo and Derico; Smithy and Nova can be ticked on.
 - **Layout:** one robot stands at the left; two stand at opposite edges; three put two at the left edge and one
@@ -46,6 +50,7 @@ components/agents/
 lib/
   agents.ts         the agents, their states and release stages
   agent-prefs.ts    menu settings (shown, open, pinned, moods), kept in localStorage
+  theme.ts          dark or light, kept in localStorage and set on the page before it paints
 ```
 
 ## Run it locally
