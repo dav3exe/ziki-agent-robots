@@ -9,8 +9,10 @@ export type Runtime = {
   x: number;
   /** Its place in the line; idle ones wander to the right of it. */
   slot: number;
-  /** Stands at the right edge (the second of a pair), so its place follows the screen width. */
+  /** Stands in the group at the right edge, so its place follows the screen width. */
   end: boolean;
+  /** How far in from the right edge it stands, when it's in the right-hand group. */
+  inset: number;
   dir: 1 | -1;
   walking: boolean;
   /** Hurrying to a far-off place, so it runs instead of walking. */
@@ -117,7 +119,7 @@ function runArm(swing: number): Arm {
 const REACH = { working: [11, 49], reviewing: [11, 29], escalating: [14, 14], idle: [11, 11] } as const;
 const EDGE = 9, GAP = 10;
 
-/** Lines the robots up from the left edge, each beside the one before, so they never sit over the middle of the page. */
+/** Lines the robots up from the left edge, each beside the one before. */
 export function lineUp(states: AgentState[]): number[] {
   let cursor = EDGE;
   return states.map((s) => {
@@ -127,8 +129,18 @@ export function lineUp(states: AgentState[]): number[] {
   });
 }
 
-/** How far in from the right edge a robot stands, so it and its props stay on screen. */
-export const rightInset = (state: AgentState) => EDGE + REACH[state][1];
+/** Lines the robots up against the right edge, given left to right: how far in from the edge each one stands. */
+export function lineUpRight(states: AgentState[]): number[] {
+  let cursor = EDGE;
+  return [...states]
+    .reverse()
+    .map((s) => {
+      const inset = cursor + REACH[s][1];
+      cursor = inset + REACH[s][0] + GAP;
+      return inset;
+    })
+    .reverse();
+}
 
 /** Takes one walking step towards a spot, at a stroll unless told otherwise. Returns true once it is there. */
 export function walkTo(rt: Runtime, target: number, dt: number, speed = 11): boolean {

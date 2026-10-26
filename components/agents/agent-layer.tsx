@@ -8,7 +8,7 @@ import { AGENT_BOTS, type AgentBot, type AgentState, STATE_LABEL } from "@/lib/a
 import { useCalls } from "@/lib/calls";
 import { Painter } from "./painter";
 import { updateMood } from "./moods";
-import { basePose, type Effects, lineUp, rightInset, type Runtime, walkTo, wander } from "./poses";
+import { basePose, type Effects, lineUp, lineUpRight, type Runtime, walkTo, wander } from "./poses";
 import { drawDesk, drawPrintout, drawRipples, type Ripple } from "./props";
 import { drawFront, drawSide } from "./robot";
 
@@ -36,13 +36,18 @@ function useAgents(): (AgentBot & { now: AgentState })[] {
 export default function AgentLayer() {
   const prefs = useAgentPrefs();
   const agents = useAgents();
-  // Idle ones go at the end of the line, so their wandering never crosses the busy ones.
-  const visible = prefs.on
+  // Half stand at the left edge and half at the right; with an odd number the extra one goes left.
+  // Idle ones stand nearest the middle, so their wandering never crosses the busy ones.
+  const shown = prefs.on
     ? agents.filter((a) => !prefs.hidden.includes(a.id)).sort((a, b) => Number(a.now === "idle") - Number(b.now === "idle"))
     : [];
-  const slots = lineUp(visible.map((a) => a.now));
-  // Two on screen stand at opposite edges; one, or three and more, line up from the left.
-  const atEnd = (i: number) => visible.length === 2 && i === 1;
+  const leftCount = Math.ceil(shown.length / 2);
+  const right = shown.slice(leftCount).sort((a, b) => Number(b.now === "idle") - Number(a.now === "idle"));
+  const visible = [...shown.slice(0, leftCount), ...right];
+  const slots = lineUp(visible.slice(0, leftCount).map((a) => a.now));
+  const insets = lineUpRight(right.map((a) => a.now));
+  const atEnd = (i: number) => i >= leftCount;
+  const insetOf = (i: number) => insets[i - leftCount];
   const [hover, setHover] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [align, setAlign] = useState("-translate-x-4");
@@ -61,10 +66,11 @@ export default function AgentLayer() {
     visible.forEach((a, i) => {
       const old = runtimes.current.get(a.id);
       const end = atEnd(i);
-      const slot = end ? width - rightInset(a.now) : slots[i];
+      const inset = end ? insetOf(i) : 0;
+      const slot = end ? width - inset : slots[i];
       const x = old?.x ?? (!runtimes.current.size ? slot : end ? width + 12 : -12);
       next.set(a.id, {
-        bot: a, state: a.now, x, slot, end, dir: old?.dir ?? 1,
+        bot: a, state: a.now, x, slot, end, inset, dir: old?.dir ?? 1,
         walking: false, running: false, target: x, pauseUntil: 0, phase: old?.phase ?? 0, tapped: false,
         // A mood carries on through a change in the line, unless what the agent is doing changed.
         mood: old?.state === a.now ? old.mood : null, nextMood: old?.nextMood ?? NaN, beat: old?.beat ?? -1, forceMood: false,
@@ -108,14 +114,14 @@ export default function AgentLayer() {
       }
 
       for (const rt of runtimes.current.values()) {
-        if (rt.end) rt.slot = width - rightInset(rt.state);
+        if (rt.end) rt.slot = width - rt.inset;
         if (!still) updateMood(rt, t, pace.current);
         if (still) rt.x = rt.slot;
         // A robot in the middle of a mood stays where it is until the mood ends.
         else if (rt.mood) rt.walking = rt.running = false;
-        // At the right edge, an idle robot strolls between there and about the middle of the screen.
+        // On the right, an idle robot strolls between its place and about the middle of the screen; on the left, out to just short of the middle.
         else if (rt.state === "idle" && rt.end) wander(rt, t, dt, Math.min(rt.slot, Math.round(width * 0.45)), rt.slot);
-        else if (rt.state === "idle") wander(rt, t, dt, rt.slot, Math.max(rt.slot, Math.min(width - 16, rt.slot + ROAM)));
+        else if (rt.state === "idle") wander(rt, t, dt, rt.slot, Math.max(rt.slot, Math.min(Math.round(width * 0.4), rt.slot + ROAM)));
         // Hurries over long distances (like crossing to the right edge) and slows to a walk as it arrives.
         else walkTo(rt, rt.slot, dt, Math.min(120, Math.max(24, Math.abs(rt.slot - rt.x) * 0.8)));
         const base = basePose(rt, still ? 0 : t, rt.mood ? quiet : fx);
@@ -185,7 +191,7 @@ export default function AgentLayer() {
               else anchors.current.delete(a.id);
             }}
             className="absolute bottom-0"
-            style={{ left: atEnd(i) ? `calc(100% - ${px(rightInset(a.now))})` : px(slots[i]) }}
+            style={{ left: atEnd(i) ? `calc(100% - ${px(insetOf(i))})` : px(slots[i]) }}
           >
             <button
               type="button"
