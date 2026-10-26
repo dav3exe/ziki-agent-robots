@@ -42,7 +42,9 @@ export default function AgentLayer() {
   const waiting = visible.filter((a) => a.now === "escalating");
   const [hover, setHover] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [align, setAlign] = useState("-translate-x-4");
+  // The hover bubble and the open card each keep their own alignment, so hovering one robot never moves another robot's card.
+  const [hoverAlign, setHoverAlign] = useState("-translate-x-4");
+  const [openAlign, setOpenAlign] = useState("-translate-x-4");
   const canvas = useRef<HTMLCanvasElement>(null);
   const floor = useRef<HTMLDivElement>(null);
   const runtimes = useRef(new Map<string, Runtime>());
@@ -173,11 +175,11 @@ export default function AgentLayer() {
     if (rt) rt.forceMood = true;
   };
   const show = (id: string) => {
-    setAlign(alignAt(id));
+    setHoverAlign(alignAt(id));
     setHover(id);
   };
   const pick = (id: string) => {
-    setAlign(alignAt(id));
+    setOpenAlign(alignAt(id));
     setOpen(open === id ? null : id);
   };
   const toggleDock = () => {
@@ -216,8 +218,8 @@ export default function AgentLayer() {
                   className="absolute bottom-0 -translate-x-1/2 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zk-accent"
                   style={{ width: px(HIT_W), height: px(HIT_H) }}
                 />
-                {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={align} />}
-                {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={align} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
+                {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={hoverAlign} />}
+                {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={openAlign} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
               </div>
             ))}
           </div>
@@ -384,7 +386,7 @@ function StateChip({ state }: { state: AgentState }) {
 
 function Hover({ agent, bottom, align }: { agent: Shown; bottom: string; align: string }) {
   return (
-    <div role="tooltip" className={`absolute w-60 ${align} rounded-lg border border-zk-border bg-zk-surface px-3 py-2 text-xs shadow-lg`} style={{ bottom }}>
+    <div role="tooltip" className={`absolute z-30 w-60 ${align} rounded-lg border border-zk-border bg-zk-surface px-3 py-2 text-xs shadow-lg`} style={{ bottom }}>
       <p className="flex items-center justify-between gap-2 font-semibold text-zk-text">
         {agent.name} <StateChip state={agent.now} />
       </p>
@@ -395,7 +397,7 @@ function Hover({ agent, bottom, align }: { agent: Shown; bottom: string; align: 
 
 function AgentCard({ agent, bottom, align, onClose, onMood }: { agent: Shown; bottom: string; align: string; onClose: () => void; onMood: () => void }) {
   return (
-    <div role="dialog" aria-label={agent.name} className={`pointer-events-auto absolute w-72 ${align} rounded-xl border border-zk-border bg-zk-surface p-4 text-sm shadow-xl`} style={{ bottom }}>
+    <div role="dialog" aria-label={agent.name} className={`pointer-events-auto absolute z-20 w-72 ${align} rounded-xl border border-zk-border bg-zk-surface p-4 text-sm shadow-xl`} style={{ bottom }}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold">{agent.name}</span>
         <span className="flex items-center gap-2">
