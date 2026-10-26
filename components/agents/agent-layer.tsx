@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
-import { setDockOpen, useAgentPrefs } from "@/lib/agent-prefs";
-import { AGENT_BOTS, type AgentBot, type AgentState, STATE_LABEL } from "@/lib/agents";
+import { Pin, PinOff, X } from "lucide-react";
+import { setDockOpen, setPinned, useAgentPrefs } from "@/lib/agent-prefs";
+import { AGENT_BOTS, type AgentBot, type AgentState, STAGES, STATE_LABEL } from "@/lib/agents";
 import { Painter } from "./painter";
 import { updateMood } from "./moods";
 import { basePose, type Effects, lineUp, lineUpRight, type Runtime, walkTo, wander } from "./poses";
@@ -25,6 +25,8 @@ export default function AgentLayer() {
   const prefs = useAgentPrefs();
   const agents = AGENTS;
   const dockOpen = prefs.open;
+  // Pinned, the robots stay on screen as a bare strip even with the dock closed.
+  const active = dockOpen || prefs.pinned;
   // Half stand at the left edge and half at the right; with an odd number the extra one goes left.
   // Idle ones stand nearest the middle, so their wandering never crosses the busy ones.
   const shown = prefs.on
@@ -44,6 +46,7 @@ export default function AgentLayer() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const floor = useRef<HTMLDivElement>(null);
   const runtimes = useRef(new Map<string, Runtime>());
+  const view = useRef(dockOpen); // which floor the robots were last placed on
   const anchors = useRef(new Map<string, HTMLElement>());
   // Read by the animation loop, which runs outside React.
   const pace = useRef(prefs.moods);
@@ -52,15 +55,18 @@ export default function AgentLayer() {
   // When the line changes, robots already on the floor walk to their new place. One switched back on walks in from the nearest edge.
   const key = visible.map((a) => `${a.id}:${a.now}`).join(",");
   useEffect(() => {
-    if (!dockOpen) return;
+    if (!active) return;
     const width = Math.ceil((floor.current?.clientWidth ?? 320) / SCALE);
+    const moved = view.current !== dockOpen;
+    view.current = dockOpen;
     const next = new Map<string, Runtime>();
     visible.forEach((a, i) => {
       const old = runtimes.current.get(a.id);
       const end = atEnd(i);
       const inset = end ? insetOf(i) : 0;
       const slot = end ? width - inset : slots[i];
-      const x = old?.x ?? (!runtimes.current.size ? slot : end ? width + 12 : -12);
+      // The floor is a different element (and width) in the dock than in the footer, so robots start at their place there.
+      const x = moved ? slot : old?.x ?? (!runtimes.current.size ? slot : end ? width + 12 : -12);
       next.set(a.id, {
         bot: a, state: a.now, x, slot, end, inset, dir: old?.dir ?? 1,
         walking: false, running: false, target: x, pauseUntil: 0, phase: old?.phase ?? 0, tapped: false,
@@ -71,11 +77,11 @@ export default function AgentLayer() {
     });
     runtimes.current = next;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, dockOpen]);
+  }, [key, active, dockOpen]);
 
   useEffect(() => {
     const el = canvas.current;
-    if (!el || !dockOpen || visible.length === 0) return;
+    if (!el || !active || visible.length === 0) return;
     const ctx = el.getContext("2d");
     if (!ctx) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -140,7 +146,7 @@ export default function AgentLayer() {
       cancelAnimationFrame(frame);
       if (dock) dock.style.transform = "";
     };
-  }, [visible.length, key, dockOpen]);
+  }, [visible.length, key, active, dockOpen]);
 
   useEffect(() => {
     if (!open && !dockOpen) return;
@@ -180,15 +186,14 @@ export default function AgentLayer() {
     setDockOpen(!dockOpen);
   };
 
-  return (
-    <div data-dock className="fixed right-3 bottom-[4.75rem] z-40 flex flex-col items-end gap-2 lg:right-6 lg:bottom-5">
-      {dockOpen && (
-        <section aria-label="Your agents" className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zk-border bg-zk-surface p-3 shadow-xl">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <p className="font-display text-sm font-bold text-zk-text">Your agents</p>
-            <span className="text-xs text-zk-muted">{visible.length} on the floor</span>
-          </div>
-          <div ref={floor} className="relative mt-2 rounded-xl border-b-2 border-zk-border bg-zk-bg" style={{ height: px(HEIGHT + 4) }}>
+  // The same floor shows in two places: inside the open dock, or, when pinned and the dock is closed, in a footer at the end of the page.
+  const footer = prefs.pinned && !dockOpen;
+  const floorEl = (
+          <div
+            ref={floor}
+            className={`relative ${dockOpen ? "mt-2 rounded-xl border-b-2 border-zk-border bg-zk-bg" : "border-b-2 border-zk-border"}`}
+            style={{ height: px(HEIGHT + 4) }}
+          >
             <canvas ref={canvas} height={HEIGHT} className="absolute bottom-0 left-0 [image-rendering:pixelated]" style={{ width: "100%", height: px(HEIGHT) }} />
             {visible.map((a, i) => (
               <div
@@ -216,29 +221,79 @@ export default function AgentLayer() {
               </div>
             ))}
           </div>
-          <ul className="mt-2 space-y-1">
-            {visible.map((a) => (
-              <li key={a.id}>
-                <button type="button" onClick={() => pick(a.id)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs hover:bg-zk-tint">
-                  <Head agent={a} />
-                  <span className="shrink-0 font-semibold text-zk-text">{a.name}</span>
-                  <span className="min-w-0 flex-1 truncate text-zk-muted">{a.task}</span>
-                  <StateChip state={a.now} />
-                </button>
-              </li>
-            ))}
-          </ul>
-          {waiting.map((a) => (
-            <Link
-              key={a.id}
-              href={`/issues/${a.issueId}`}
-              onClick={() => setDockOpen(false)}
-              className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-zk-bad-bd bg-zk-bad-bg px-3 py-2 text-xs font-semibold text-zk-bad-fg"
+  );
+
+  return (
+    <>
+      {footer && (
+        <footer data-dock aria-label="Your agents" className="mx-auto w-full max-w-6xl px-2 pb-32 sm:px-6 lg:pb-20">
+          <div className="flex items-center justify-between gap-2 pb-1 text-xs text-zk-muted">
+            <span className="font-semibold text-zk-text2">Your agents</span>
+            <button
+              type="button"
+              onClick={() => setPinned(false)}
+              title="Unpin the robots"
+              className="flex items-center gap-1 rounded-md border border-zk-accent/60 px-1.5 py-0.5 font-semibold text-zk-accent"
             >
-              {a.name} needs your call on #{a.issueId}
-              <span className="shrink-0 underline">Open it</span>
-            </Link>
-          ))}
+              <PinOff className="size-3" /> Pinned
+            </button>
+          </div>
+          {floorEl}
+        </footer>
+      )}
+    <div data-dock className="fixed right-3 bottom-[4.75rem] z-40 flex flex-col items-end gap-2 lg:right-6 lg:bottom-5">
+      {dockOpen && (
+        <section aria-label="Your agents" className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zk-border bg-zk-surface p-3 shadow-xl">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="font-display text-sm font-bold text-zk-text">Your agents</p>
+            <span className="flex items-center gap-2 text-xs text-zk-muted">
+              {visible.length} on the floor
+              <button
+                type="button"
+                aria-pressed={prefs.pinned}
+                onClick={() => setPinned(!prefs.pinned)}
+                title={prefs.pinned ? "Unpin the robots" : "Keep the robots at the end of the page when this is closed"}
+                className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold ${prefs.pinned ? "border-zk-accent/60 text-zk-accent" : "border-zk-border text-zk-text2"}`}
+              >
+                {prefs.pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
+                {prefs.pinned ? "Pinned" : "Pin"}
+              </button>
+            </span>
+          </div>
+          {floorEl}
+          {GROUPS.map((g) => {
+            const rows = visible.filter((a) => g.has(a.now));
+            if (rows.length === 0) return null;
+            return (
+              <div key={g.title} className="mt-2">
+                <p className="flex items-center justify-between px-1.5 pb-1 text-[11px] font-semibold text-zk-muted">
+                  <span className={g.urgent ? "text-zk-bad-fg" : ""}>{g.title}</span>
+                  <span>{rows.length}</span>
+                </p>
+                <ul className="space-y-1">
+                  {rows.map((a) => (
+                    <li key={a.id} className={`flex items-center gap-2 rounded-lg px-1.5 py-1.5 ${g.urgent ? "border border-zk-bad-bd bg-zk-bad-bg" : "hover:bg-zk-tint"}`}>
+                      <button type="button" onClick={() => pick(a.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs">
+                        <Head agent={a} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold text-zk-text">{a.name}</span>
+                          <span className="block truncate text-zk-muted">{a.task}</span>
+                          {a.stage !== undefined && <StageBar stage={a.stage} />}
+                        </span>
+                      </button>
+                      <Link
+                        href={a.issueId ? `/issues/${a.issueId}` : "/issues?status=open"}
+                        onClick={() => setDockOpen(false)}
+                        className={`shrink-0 rounded-[10px] px-2.5 py-1.5 text-xs font-semibold ${g.urgent ? "bg-zk-blue text-white" : "border border-zk-border text-zk-text"}`}
+                      >
+                        {rowAction(a)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </section>
       )}
       <button
@@ -261,9 +316,21 @@ export default function AgentLayer() {
             </span>
           ))}
         </span>
-        {dockOpen ? <X className="size-4" /> : "Agents"}
+        {dockOpen ? (
+          <X className="size-4" />
+        ) : (
+          <>
+            Agents
+            {waiting.length > 0 && (
+              <span className="rounded-md bg-zk-bad-bg px-1.5 py-0.5 text-[11px] text-zk-bad-fg">
+                {waiting.length} {waiting.length === 1 ? "needs" : "need"} you
+              </span>
+            )}
+          </>
+        )}
       </button>
     </div>
+    </>
   );
 }
 
@@ -277,6 +344,33 @@ function Head({ agent }: { agent: Shown }) {
 }
 
 type Shown = AgentBot & { now: AgentState };
+
+const GROUPS = [
+  { title: "Needs you", urgent: true, has: (s: AgentState) => s === "escalating" },
+  { title: "Working", urgent: false, has: (s: AgentState) => s === "working" || s === "reviewing" },
+  { title: "Idle", urgent: false, has: (s: AgentState) => s === "idle" },
+];
+
+/** The one thing to do with this agent from its row. */
+function rowAction(a: Shown): string {
+  if (a.now === "escalating") return `Review #${a.issueId}`;
+  if (a.now === "idle" || !a.issueId) return "Give a task";
+  return `See #${a.issueId}`;
+}
+
+/** Five steps from proposal to live; the filled ones are done, with the current step named underneath. */
+function StageBar({ stage }: { stage: number }) {
+  return (
+    <span className="mt-1.5 block" role="img" aria-label={`Stage: ${STAGES[stage]}`}>
+      <span className="flex gap-0.5">
+        {STAGES.map((s, i) => (
+          <span key={s} className={`h-1 flex-1 rounded-full ${i <= stage ? "bg-zk-accent" : "bg-zk-border"}`} />
+        ))}
+      </span>
+      <span className="mt-0.5 block text-[10px] text-zk-muted">{STAGES[stage]}</span>
+    </span>
+  );
+}
 
 function StateChip({ state }: { state: AgentState }) {
   const tone = state === "escalating" ? "border-zk-warn-bd bg-zk-warn-bg text-zk-warn-fg" : "border-transparent bg-zk-info-bg text-zk-info-fg";

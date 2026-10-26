@@ -4,11 +4,11 @@
 import { useSyncExternalStore } from "react";
 import type { MoodPace } from "@/components/agents/moods";
 
-export type AgentPrefs = { on: boolean; open: boolean; hidden: string[]; moods: MoodPace };
+export type AgentPrefs = { on: boolean; open: boolean; pinned: boolean; hidden: string[]; moods: MoodPace };
 
 const KEY = "ziki-mock-agents";
 // First visit shows the dock closed, with two agents, one at each end; the rest can be ticked on in the Agents menu.
-const DEFAULT: AgentPrefs = { on: true, open: false, hidden: ["smithy", "nova"], moods: "lively" };
+const DEFAULT: AgentPrefs = { on: true, open: false, pinned: false, hidden: ["smithy", "nova"], moods: "lively" };
 const listeners = new Set<() => void>();
 let cache: AgentPrefs | null = null;
 
@@ -47,6 +47,11 @@ export function setAgentsOn(on: boolean) {
 
 export function setDockOpen(open: boolean) {
   write({ ...read(), open });
+}
+
+/** Keeps the robots on screen, in a bare strip, while the dock is closed. */
+export function setPinned(pinned: boolean) {
+  write({ ...read(), pinned });
 }
 
 export function setMoodPace(moods: MoodPace) {

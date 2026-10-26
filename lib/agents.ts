@@ -10,6 +10,8 @@ export type AgentBot = {
   name: string;
   state: AgentState;
   issueId?: number;
+  /** Where its issue is on the way to live: an index into STAGES. */
+  stage?: number;
   task: string;
   detail: string;
   palette: Palette;
@@ -17,17 +19,17 @@ export type AgentBot = {
 
 export const AGENT_BOTS: AgentBot[] = [
   {
-    id: "turbo", name: "Agent Turbo", state: "working", issueId: 144,
+    id: "turbo", name: "Agent Turbo", state: "working", issueId: 144, stage: 1,
     task: "#144 Trim emails before checking them", detail: "Writing the fix. 3 files changed, tests running.",
     palette: ["#c9d4e8", "#8796b2", "#64738f", "#414d68", "#262f45"],
   },
   {
-    id: "smithy", name: "Smithy", state: "reviewing", issueId: 62,
+    id: "smithy", name: "Smithy", state: "reviewing", issueId: 62, stage: 1,
     task: "#62 Search panel on the real API", detail: "Reviewing the PR. Line 214 of 388.",
     palette: ["#c4dcd9", "#7f9fa0", "#5c7b7c", "#3b5555", "#223433"],
   },
   {
-    id: "derico", name: "Derico", state: "escalating", issueId: 143,
+    id: "derico", name: "Derico", state: "escalating", issueId: 143, stage: 2,
     task: "#143 Bell hover preview", detail: "9 agents say merge. I say not ready: Escape doesn’t close it. Your call.",
     palette: ["#e3d8c4", "#ad9c80", "#84755e", "#574c3c", "#352e24"],
   },
@@ -37,6 +39,8 @@ export const AGENT_BOTS: AgentBot[] = [
     palette: ["#e4e9f1", "#adb8c7", "#8692a4", "#5c677c", "#3a4151"],
   },
 ];
+
+export const STAGES = ["Proposal", "Active", "Merge-ready", "Staging", "Live"] as const;
 
 export const STATE_LABEL: Record<AgentState, string> = {
   working: "Working",

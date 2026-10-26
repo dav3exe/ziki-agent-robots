@@ -24,8 +24,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <main className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-2 pt-2.5 pb-28 sm:px-6 sm:py-8 sm:pb-28 lg:pb-8">
             {children}
           </main>
+          <AgentLayer />
         </div>
-        <AgentLayer />
         <BottomNav />
         <ProposalLink />
       </body>

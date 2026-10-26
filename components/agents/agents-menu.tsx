@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown } from "lucide-react";
-import { setAgentsOn, setMoodPace, toggleAgent, useAgentPrefs } from "@/lib/agent-prefs";
+import { setAgentsOn, setMoodPace, setPinned, toggleAgent, useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS } from "@/lib/agents";
 import NewTag from "../new-tag";
 import type { MoodPace } from "./moods";
@@ -48,6 +48,10 @@ export default function AgentsMenu() {
           <label className="flex items-center justify-between gap-2 font-semibold">
             <span className="flex items-center gap-2">Show the agent dock <NewTag /></span>
             <input type="checkbox" checked={prefs.on} onChange={(e) => setAgentsOn(e.target.checked)} className="size-4 accent-zk-blue" />
+          </label>
+          <label className={`mt-3 flex items-center justify-between gap-2 border-t border-zk-divider pt-3 font-semibold ${prefs.on ? "" : "opacity-50"}`}>
+            Keep robots on screen
+            <input type="checkbox" checked={prefs.pinned} disabled={!prefs.on} onChange={(e) => setPinned(e.target.checked)} className="size-4 accent-zk-blue" />
           </label>
           <ul className="mt-3 space-y-2 border-t border-zk-divider pt-3">
             {AGENT_BOTS.map((a) => (
