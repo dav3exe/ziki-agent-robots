@@ -1,5 +1,5 @@
 import type { AgentBot, AgentState } from "@/lib/agents";
-import type { Pose } from "./robot";
+import type { Arm, Pose } from "./robot";
 
 /** One robot on screen, and what it's doing right now. */
 export type Runtime = {
@@ -83,11 +83,12 @@ export function basePose(rt: Runtime, t: number, fx: Effects): Pose {
 function walkPose(rt: Runtime, common: Pick<Pose, "visor" | "led" | "tilt" | "pan" | "scan" | "blink">): Pose {
   const swing = Math.sin(rt.phase);
   if (rt.running) {
-    // Running: elbows bent, arms pumping hard against the legs, body bouncing with each stride.
+    // Running like an athlete: leaning forward, elbows bent at a right angle, one arm driving forward
+    // (hand up to the chest) while the other swings back, opposite to the legs.
     return {
-      ...common, view: "side", dir: rt.dir, bob: Math.round(Math.abs(swing) * 2), legs: { kind: "walk", phase: rt.phase, run: true },
-      near: { elbow: [-swing * 6, -38], hand: [4 - swing * 6, -44] },
-      far: { elbow: [swing * 6, -38], hand: [4 + swing * 6, -44] },
+      ...common, view: "side", dir: rt.dir, bob: Math.round(Math.abs(swing) * 2), lean: 2,
+      legs: { kind: "walk", phase: rt.phase, run: true },
+      near: runArm(-swing), far: runArm(swing),
     };
   }
   return {
@@ -95,6 +96,13 @@ function walkPose(rt: Runtime, common: Pick<Pose, "visor" | "led" | "tilt" | "pa
     near: { elbow: [1 + swing * 3, -37], hand: [2 + swing * 5, -29] },
     far: { elbow: [1 - swing * 3, -37], hand: [2 - swing * 5, -29] },
   };
+}
+
+/** One arm of a runner, swung forward (1) or back (-1) from the shoulder, with the elbow bent at a right angle. */
+function runArm(swing: number): Arm {
+  const a = swing * 1.1;
+  const elbow: [number, number] = [1 + Math.sin(a) * 9, -46 + Math.cos(a) * 9];
+  return { elbow, hand: [elbow[0] + Math.cos(a) * 8, elbow[1] - Math.sin(a) * 8] };
 }
 
 /** How far each robot and its props reach behind it and in front of it, in canvas pixels. */

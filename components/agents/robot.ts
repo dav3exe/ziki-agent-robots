@@ -28,6 +28,8 @@ export type Pose = {
   glow?: boolean;
   /** Hands drawn bigger, as when one comes close to the glass. */
   bigHands?: boolean;
+  /** Side view: everything above the hips moved forward by this many pixels, the head a pixel more (running). */
+  lean?: number;
 };
 
 const GLASS = "#0b1426";
@@ -60,9 +62,15 @@ function sideLeg(p: Painter, pal: Palette, near: boolean, footX: number, lift: n
   p.rect(footX + 5, -2 - Math.round(lift), 1, 2, near ? pal[4] : "#11151f");
 }
 
-function sideArm(p: Painter, pal: Palette, arm: Arm, bob: number, near: boolean) {
+function sideArm(p: Painter, pal: Palette, arm: Arm, bob: number, near: boolean, outline = false) {
   const [ex, ey] = arm.elbow, [hx, hy] = arm.hand;
   const c = near ? pal[2] : pal[3], top = near ? pal[0] : pal[2];
+  // A dark edge so a fast-moving arm stands out against the body.
+  if (outline) {
+    p.line(1, -46 + bob, ex, ey + bob, 5, pal[4]);
+    p.line(ex, ey + bob, hx, hy + bob, 5, pal[4]);
+    p.rect(hx - 3, hy + bob - 3, 6, 6, pal[4]);
+  }
   p.line(1, -46 + bob, ex, ey + bob, 3, c, top);
   p.line(ex, ey + bob, hx, hy + bob, 3, c, top);
   p.disc(Math.round(ex), Math.round(ey + bob), 1, near ? pal[3] : pal[4]);
@@ -73,8 +81,11 @@ function sideArm(p: Painter, pal: Palette, arm: Arm, bob: number, near: boolean)
 /** A robot seen from the side, facing pose.dir. */
 export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
   const b = pose.bob;
+  const base = p.x, lean = (pose.lean ?? 0) * p.dir;
   p.shadow(22);
+  p.x = base + lean;
   sideArm(p, pal, pose.far, b, false);
+  p.x = base;
 
   // Legs: far one first.
   for (const near of [false, true]) {
@@ -91,6 +102,8 @@ export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
     }
   }
 
+  // Upper body, leaning forward if it's running.
+  p.x = base + lean;
   // Pelvis and power pack.
   p.rect(-7, -31 + b, 14, 4, pal[2]);
   p.rect(-7, -31 + b, 14, 1, pal[1]);
@@ -120,6 +133,7 @@ export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
   // Neck and head.
   p.rect(-2, -54 + b, 6, 4, pal[3]);
   p.rect(-2, -53 + b, 6, 1, pal[2]);
+  if (lean) p.x = base + lean + p.dir;
   const hy = -67 + b + pose.tilt;
   p.rect(-8, hy, 18, 13, pal[1]);
   p.rect(-7, hy - 1, 16, 1, pal[0]);
@@ -134,9 +148,11 @@ export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
   // Antenna.
   p.rect(-5, hy - 5, 1, 5, pal[2]);
   led(p, -5, hy - 6, pose, t, 1);
+  p.x = base + lean;
 
-  sideArm(p, pal, pose.near, b, true);
+  sideArm(p, pal, pose.near, b, true, !!pose.lean);
   p.disc(1, -46 + b, 3, pal[2], pal[1]);
+  p.x = base;
 }
 
 /** A robot facing you. */
