@@ -157,17 +157,18 @@ export default function AgentLayer() {
       if (open) setOpen(null);
       else setDockOpen(false);
     };
-    // A click anywhere outside the open card closes it. A robot or its list row is left alone, since it opens (or closes) its own card.
+    // A click outside the open card closes the card; a click outside the whole dock closes the dock too. A robot or its list row is left alone, since it opens (or closes) its own card, and the Agents pill toggles the dock itself.
     const away = (e: PointerEvent) => {
-      if (!open || !(e.target instanceof Element)) return;
-      if (e.target.closest("[role=dialog], [data-agent-trigger]")) return;
-      setOpen(null);
+      if (!(e.target instanceof Element)) return;
+      if (e.target.closest("[role=dialog], [data-agent-trigger], [data-dock-toggle]")) return;
+      if (open) setOpen(null);
+      if (dockOpen && !e.target.closest("[data-dock-panel]")) setDockOpen(false);
     };
     window.addEventListener("keydown", close);
-    document.addEventListener("pointerdown", away);
+    document.addEventListener("pointerdown", away, true);
     return () => {
       window.removeEventListener("keydown", close);
-      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("pointerdown", away, true);
     };
   }, [open, dockOpen]);
 
@@ -256,7 +257,7 @@ export default function AgentLayer() {
       )}
     <div data-dock className="fixed right-3 bottom-[4.75rem] z-40 flex flex-col items-end gap-2 lg:right-6 lg:bottom-5">
       {dockOpen && (
-        <section aria-label="Your agents" className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zk-border bg-zk-surface p-3 shadow-xl">
+        <section aria-label="Your agents" data-dock-panel className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zk-border bg-zk-surface p-3 shadow-xl">
           <div className="flex items-center justify-between gap-2 px-1">
             <p className="font-display text-sm font-bold text-zk-text">Your agents</p>
             <span className="flex items-center gap-2 text-xs text-zk-muted">
@@ -312,6 +313,7 @@ export default function AgentLayer() {
       <button
         type="button"
         onClick={toggleDock}
+        data-dock-toggle
         aria-expanded={dockOpen}
         aria-label={dockOpen ? "Close your agents" : `Your agents${waiting.length ? `, ${waiting.length} need your call` : ""}`}
         className="flex items-center gap-2 rounded-full border border-zk-border bg-zk-surface py-1.5 pr-3 pl-2 text-xs font-semibold text-zk-text shadow-lg hover:bg-zk-tint"
