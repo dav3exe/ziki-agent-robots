@@ -11,7 +11,7 @@ export type Pose = {
   dir: 1 | -1;
   /** Upper body moved down by this many pixels (a servo settling, a step). */
   bob: number;
-  legs: { kind: "stand" } | { kind: "walk"; phase: number };
+  legs: { kind: "stand" } | { kind: "walk"; phase: number; run?: boolean };
   /** Side view: the near arm. Front view: the arm on the viewer's right. */
   near: Arm;
   /** Side view: the far arm. Front view: the arm on the viewer's left. */
@@ -47,10 +47,10 @@ function led(p: Painter, x: number, y: number, pose: Pose, t: number, size = 2) 
   p.rect(x, y, size, size, pose.led);
 }
 
-function sideLeg(p: Painter, pal: Palette, near: boolean, footX: number, lift: number) {
+function sideLeg(p: Painter, pal: Palette, near: boolean, footX: number, lift: number, bend = 2.5) {
   const hipY = -28;
   const ankle: Point = [footX, -4 - lift];
-  const knee: Point = [(footX + 0) / 2 + 2.5, (hipY + ankle[1]) / 2];
+  const knee: Point = [(footX + 0) / 2 + bend, (hipY + ankle[1]) / 2];
   const c = near ? pal[2] : pal[3], top = near ? pal[1] : pal[2];
   p.line(0, hipY, knee[0], knee[1], 5, c, top);
   p.line(knee[0], knee[1], ankle[0], ankle[1], 4, c, top);
@@ -78,7 +78,12 @@ export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
 
   // Legs: far one first.
   for (const near of [false, true]) {
-    if (pose.legs.kind === "walk") {
+    if (pose.legs.kind === "walk" && pose.legs.run) {
+      // Running: a long stride, and the leg coming forward lifts its knee high.
+      const ph = pose.legs.phase + (near ? 0 : Math.PI);
+      const lift = Math.max(0, Math.cos(ph)) * 8;
+      sideLeg(p, pal, near, Math.sin(ph) * 9, lift, 2.5 + lift * 0.7);
+    } else if (pose.legs.kind === "walk") {
       const ph = pose.legs.phase + (near ? 0 : Math.PI);
       sideLeg(p, pal, near, Math.sin(ph) * 6, Math.max(0, Math.cos(ph)) * 3);
     } else {

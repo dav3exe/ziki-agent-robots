@@ -7,7 +7,7 @@ import { useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS, type AgentBot, type AgentState, STATE_LABEL } from "@/lib/agents";
 import { useCalls } from "@/lib/calls";
 import { Painter } from "./painter";
-import { basePose, lineUp, type Runtime, walkTo, wander } from "./poses";
+import { basePose, lineUp, rightInset, type Runtime, walkTo, wander } from "./poses";
 import { drawDesk, drawPrintout, drawRipples, type Ripple } from "./props";
 import { drawFront, drawSide } from "./robot";
 
@@ -40,6 +40,8 @@ export default function AgentLayer() {
     ? agents.filter((a) => !prefs.hidden.includes(a.id)).sort((a, b) => Number(a.now === "idle") - Number(b.now === "idle"))
     : [];
   const slots = lineUp(visible.map((a) => a.now));
+  // Two on screen stand at opposite edges; one, or three and more, line up from the left.
+  const atEnd = (i: number) => visible.length === 2 && i === 1;
   const [hover, setHover] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [align, setAlign] = useState("-translate-x-4");
@@ -47,16 +49,19 @@ export default function AgentLayer() {
   const runtimes = useRef(new Map<string, Runtime>());
   const anchors = useRef(new Map<string, HTMLElement>());
 
-  // When the line changes, robots already on screen walk to their new place. One switched back on walks in from the left edge.
+  // When the line changes, robots already on screen walk to their new place. One switched back on walks in from the nearest edge.
   const key = visible.map((a) => `${a.id}:${a.now}`).join(",");
   useEffect(() => {
+    const width = Math.ceil(window.innerWidth / SCALE);
     const next = new Map<string, Runtime>();
     visible.forEach((a, i) => {
       const old = runtimes.current.get(a.id);
-      const x = old?.x ?? (runtimes.current.size ? -12 : slots[i]);
+      const end = atEnd(i);
+      const slot = end ? width - rightInset(a.now) : slots[i];
+      const x = old?.x ?? (!runtimes.current.size ? slot : end ? width + 12 : -12);
       next.set(a.id, {
-        bot: a, state: a.now, x, slot: slots[i], dir: old?.dir ?? 1,
-        walking: false, target: x, pauseUntil: 0, phase: old?.phase ?? 0, tapped: false,
+        bot: a, state: a.now, x, slot, end, dir: old?.dir ?? 1,
+        walking: false, running: false, target: x, pauseUntil: 0, phase: old?.phase ?? 0, tapped: false,
       });
     });
     runtimes.current = next;
@@ -82,9 +87,13 @@ export default function AgentLayer() {
       const fx = { tap: (x: number, y: number) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "214,48,48", size: 14 }) };
 
       for (const rt of runtimes.current.values()) {
+        if (rt.end) rt.slot = width - rightInset(rt.state);
         if (still) rt.x = rt.slot;
+        // At the right edge, an idle robot strolls between there and about the middle of the screen.
+        else if (rt.state === "idle" && rt.end) wander(rt, t, dt, Math.min(rt.slot, Math.round(width * 0.45)), rt.slot);
         else if (rt.state === "idle") wander(rt, t, dt, rt.slot, Math.max(rt.slot, Math.min(width - 16, rt.slot + ROAM)));
-        else walkTo(rt, rt.slot, dt, 24);
+        // Hurries over long distances (like crossing to the right edge) and slows to a walk as it arrives.
+        else walkTo(rt, rt.slot, dt, Math.min(120, Math.max(24, Math.abs(rt.slot - rt.x) * 0.8)));
         const pose = basePose(rt, still ? 0 : t, fx);
         // The desk stays at its place in the line; a robot on its way walks up to it.
         if (rt.state === "working") drawDesk(painter.at(rt.slot, 1), t, !still);
@@ -136,7 +145,7 @@ export default function AgentLayer() {
               else anchors.current.delete(a.id);
             }}
             className="absolute bottom-0"
-            style={{ left: px(slots[i]) }}
+            style={{ left: atEnd(i) ? `calc(100% - ${px(rightInset(a.now))})` : px(slots[i]) }}
           >
             <button
               type="button"

@@ -8,8 +8,12 @@ export type Runtime = {
   x: number;
   /** Its place in the line; idle ones wander to the right of it. */
   slot: number;
+  /** Stands at the right edge (the second of a pair), so its place follows the screen width. */
+  end: boolean;
   dir: 1 | -1;
   walking: boolean;
+  /** Hurrying to a far-off place, so it runs instead of walking. */
+  running: boolean;
   target: number;
   pauseUntil: number;
   phase: number;
@@ -78,6 +82,14 @@ export function basePose(rt: Runtime, t: number, fx: Effects): Pose {
 /** Walking, arms swinging: an idle robot wandering, or any robot moving to its new place in the line. */
 function walkPose(rt: Runtime, common: Pick<Pose, "visor" | "led" | "tilt" | "pan" | "scan" | "blink">): Pose {
   const swing = Math.sin(rt.phase);
+  if (rt.running) {
+    // Running: elbows bent, arms pumping hard against the legs, body bouncing with each stride.
+    return {
+      ...common, view: "side", dir: rt.dir, bob: Math.round(Math.abs(swing) * 2), legs: { kind: "walk", phase: rt.phase, run: true },
+      near: { elbow: [-swing * 6, -38], hand: [4 - swing * 6, -44] },
+      far: { elbow: [swing * 6, -38], hand: [4 + swing * 6, -44] },
+    };
+  }
   return {
     ...common, view: "side", dir: rt.dir, bob: Math.round(Math.abs(swing)), legs: { kind: "walk", phase: rt.phase },
     near: { elbow: [1 + swing * 3, -37], hand: [2 + swing * 5, -29] },
@@ -99,19 +111,25 @@ export function lineUp(states: AgentState[]): number[] {
   });
 }
 
+/** How far in from the right edge a robot stands, so it and its props stay on screen. */
+export const rightInset = (state: AgentState) => EDGE + REACH[state][1];
+
 /** Takes one walking step towards a spot, at a stroll unless told otherwise. Returns true once it is there. */
 export function walkTo(rt: Runtime, target: number, dt: number, speed = 11): boolean {
   const d = target - rt.x;
   if (Math.abs(d) < 0.5) {
     rt.x = target;
     rt.walking = false;
+    rt.running = false;
     return true;
   }
   rt.walking = true;
+  rt.running = speed > 40;
   rt.dir = d > 0 ? 1 : -1;
   const step = Math.min(Math.abs(d), speed * dt);
   rt.x += rt.dir * step;
-  rt.phase += step * 0.3;
+  // A runner covers more ground per stride, so its legs cycle slower for the distance than a walker's.
+  rt.phase += step * (rt.running ? 0.12 : 0.3);
   return false;
 }
 
