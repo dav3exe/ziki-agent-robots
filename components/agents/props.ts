@@ -45,42 +45,52 @@ export function drawPrintout(p: Painter, t: number) {
 
 export type Ripple = { x: number; y: number; born: number; rgb: string; size: number };
 
-/** Rings spreading over the glass where a robot taps it. */
+/** How far each point of the impact star reaches, so the burst looks hand-drawn rather than even. */
+const SPIKES = [12, 8, 14, 9, 11, 7, 13, 9, 12];
+
+/** A manga-style impact where a robot knocks on the glass: a white starburst with a thin red edge, and speed lines shooting out. */
 export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t: number) {
   for (let i = ripples.length - 1; i >= 0; i--) {
     const r = ripples[i];
-    const age = (t - r.born) / 1.1;
+    const age = (t - r.born) / 0.6;
     if (age >= 1) {
       ripples.splice(i, 1);
       continue;
     }
-    // A bright flash where the knuckle lands, big enough to catch the corner of your eye, then it fades.
     const cx = Math.round(r.x), cy = Math.round(r.y);
-    if (age < 0.5) {
-      const glow = 1 - age / 0.5;
-      // Round pixel glow: strongest in the middle, fading out in bands.
-      for (let dy = -10; dy <= 10; dy++) {
-        for (let dx = -12; dx <= 12; dx++) {
-          const d = Math.hypot(dx, dy * 1.2);
-          if (d > 12) continue;
-          ctx.fillStyle = `rgba(${r.rgb},${(glow * (d < 4 ? 0.95 : d < 8 ? 0.6 : 0.25)).toFixed(2)})`;
+    // Each knock turns the star a little, so no two look the same.
+    const seed = Math.floor(r.born * 7);
+    const spin = (seed % 9) * 0.35;
+
+    // The starburst pops in slightly oversized, holds, then shrinks away.
+    if (age < 0.55) {
+      const size = age < 0.08 ? 1.15 : 1 - (age - 0.08) * 0.7;
+      const alpha = age < 0.35 ? 1 : 1 - (age - 0.35) / 0.2;
+      for (let dy = -16; dy <= 16; dy++) {
+        for (let dx = -17; dx <= 17; dx++) {
+          const d = Math.hypot(dx, dy * 1.15);
+          if (d > 17) continue;
+          const turn = (((Math.atan2(dy, dx) + spin) / (Math.PI * 2)) * SPIKES.length + SPIKES.length) % SPIKES.length;
+          const k = Math.floor(turn);
+          const towardsTip = 1 - Math.abs(turn - k - 0.5) * 2;
+          const edge = (5 + (SPIKES[(k + seed) % SPIKES.length] - 5) * towardsTip) * size;
+          if (d > edge) continue;
+          ctx.fillStyle = d > edge - 1.2 ? `rgba(${r.rgb},${(alpha * 0.85).toFixed(2)})` : `rgba(255,255,255,${alpha.toFixed(2)})`;
           ctx.fillRect(cx + dx, cy + dy, 1, 1);
         }
       }
-      // A white-hot core with a soft bloom of red light around it.
-      ctx.save();
-      ctx.shadowColor = `rgba(${r.rgb},${glow.toFixed(2)})`;
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = `rgba(255,236,232,${glow.toFixed(2)})`;
-      ctx.fillRect(cx - 2, cy - 2, 5, 5);
-      ctx.fillRect(cx - 8, cy, 17, 1);
-      ctx.fillRect(cx, cy - 7, 1, 15);
-      ctx.restore();
     }
-    const radius = 3 + age * r.size;
-    ctx.fillStyle = `rgba(${r.rgb},${(1 - age).toFixed(2)})`;
-    for (let a = 0; a < Math.PI * 2; a += 0.15) {
-      ctx.fillRect(Math.round(r.x + Math.cos(a) * radius), Math.round(r.y + Math.sin(a) * radius * 0.75), 2, age < 0.6 ? 2 : 1);
+
+    // Speed lines: short white dashes flying outwards between the points.
+    if (age < 0.75) {
+      const from = 13 + age * r.size, length = Math.max(2, 7 * (1 - age));
+      ctx.fillStyle = `rgba(255,255,255,${(1 - age / 0.75).toFixed(2)})`;
+      for (let k = 0; k < 8; k++) {
+        const a = spin + 0.2 + (k * Math.PI * 2) / 8;
+        for (let s = 0; s < length; s++) {
+          ctx.fillRect(Math.round(cx + Math.cos(a) * (from + s)), Math.round(cy + Math.sin(a) * (from + s) * 0.85), 1, 1);
+        }
+      }
     }
   }
 }
