@@ -157,8 +157,18 @@ export default function AgentLayer() {
       if (open) setOpen(null);
       else setDockOpen(false);
     };
+    // A click anywhere outside the open card closes it. A robot or its list row is left alone, since it opens (or closes) its own card.
+    const away = (e: PointerEvent) => {
+      if (!open || !(e.target instanceof Element)) return;
+      if (e.target.closest("[role=dialog], [data-agent-trigger]")) return;
+      setOpen(null);
+    };
     window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    document.addEventListener("pointerdown", away);
+    return () => {
+      window.removeEventListener("keydown", close);
+      document.removeEventListener("pointerdown", away);
+    };
   }, [open, dockOpen]);
 
   if (visible.length === 0) return null;
@@ -215,6 +225,7 @@ export default function AgentLayer() {
                   onFocus={() => show(a.id)}
                   onBlur={() => setHover((h) => (h === a.id ? null : h))}
                   onClick={() => pick(a.id)}
+                  data-agent-trigger
                   className="absolute bottom-0 -translate-x-1/2 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zk-accent"
                   style={{ width: px(HIT_W), height: px(HIT_H) }}
                 />
@@ -275,7 +286,7 @@ export default function AgentLayer() {
                 <ul className="space-y-1">
                   {rows.map((a) => (
                     <li key={a.id} className={`flex items-center gap-2 rounded-lg px-1.5 py-1.5 ${g.urgent ? "border border-zk-bad-bd bg-zk-bad-bg" : "hover:bg-zk-tint"}`}>
-                      <button type="button" onClick={() => pick(a.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs">
+                      <button type="button" onClick={() => pick(a.id)} data-agent-trigger className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs">
                         <Head agent={a} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-semibold text-zk-text">{a.name}</span>
