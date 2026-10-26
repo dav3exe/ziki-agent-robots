@@ -51,8 +51,8 @@ export type Ripple = { x: number; y: number; born: number; rgb: string; size: nu
 /** How far each point of the impact star reaches, so the burst looks hand-drawn rather than even. */
 const SPIKES = [12, 8, 14, 9, 11, 7, 13, 9, 12];
 
-/** A manga-style impact where a robot knocks on the glass: a white starburst with a thin red edge, and speed lines shooting out. */
-export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t: number) {
+/** A manga-style impact where a robot knocks on the glass: a white starburst with a thin red edge, and speed lines shooting out (white on the dark floor, red on the light one, given as "r,g,b"). */
+export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t: number, lines = "255,255,255") {
   for (let i = ripples.length - 1; i >= 0; i--) {
     const r = ripples[i];
     const age = (t - r.born) / 0.6;
@@ -88,7 +88,7 @@ export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t:
     // Speed lines: short white dashes flying outwards between the points.
     if (age < 0.75) {
       const from = (13 + age * r.size) * r.scale, length = Math.max(2, 7 * (1 - age) * r.scale);
-      ctx.fillStyle = `rgba(255,255,255,${(1 - age / 0.75).toFixed(2)})`;
+      ctx.fillStyle = `rgba(${lines},${(1 - age / 0.75).toFixed(2)})`;
       for (let k = 0; k < 8; k++) {
         const a = spin + 0.2 + (k * Math.PI * 2) / 8;
         for (let s = 0; s < length; s++) {

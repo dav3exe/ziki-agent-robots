@@ -27,6 +27,33 @@
   color-scheme: dark;
 }
 
+/* The light version. Dark stays the default (it is what Ziki looks like); the header's sun and moon button switches it. */
+:root[data-theme="light"] {
+  --zk-bg: #f4f7fc;
+  --zk-surface: #ffffff;
+  --zk-text: #0f1b33;
+  --zk-text2: #3b4a66;
+  --zk-muted: #6b7a94;
+  --zk-border: #d5deec;
+  --zk-divider: #e4ebf5;
+  --zk-tint: #e6eefc;
+  --zk-chip: #e9eef7;
+  --zk-seg: #eef3fb;
+  --zk-accent: #1d5bd6;
+  --zk-blue: #2e6fef;
+  --zk-ok-bg: #dff7ea;
+  --zk-ok-fg: #137a47;
+  --zk-bad-bg: #fde4e2;
+  --zk-bad-fg: #b42318;
+  --zk-bad-bd: #f0b0aa;
+  --zk-warn-bg: #fdf0c9;
+  --zk-warn-fg: #8a5a00;
+  --zk-warn-bd: #ecd07a;
+  --zk-info-bg: #e2ecff;
+  --zk-info-fg: #1f4fb3;
+  color-scheme: light;
+}
+
 @theme inline {
   --color-zk-bg: var(--zk-bg);
   --color-zk-surface: var(--zk-surface);

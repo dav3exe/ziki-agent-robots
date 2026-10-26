@@ -17,7 +17,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies a saved light choice before the first paint, so the page never flashes dark. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem("ziki-mock-theme")==="light")document.documentElement.dataset.theme="light"}catch(e){}` }} />
+      </head>
       <body className={`${inter.variable} ${manrope.variable} ${geistMono.variable} min-h-screen overflow-x-clip font-sans antialiased`}>
         <div className="flex min-h-screen flex-col">
           <AppHeader />

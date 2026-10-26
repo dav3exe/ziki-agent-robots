@@ -6,6 +6,7 @@ import { Bell, ChevronDown, Trophy } from "lucide-react";
 import { ME, PROJECT } from "@/lib/data";
 import AgentsMenu from "./agents/agents-menu";
 import Avatar from "./avatar";
+import ThemeToggle from "./theme-toggle";
 import ZikiLogo from "./ziki-logo";
 import { SECTIONS } from "./sections";
 
@@ -37,6 +38,7 @@ export default function AppHeader() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <ThemeToggle />
           <AgentsMenu />
           <button type="button" className="flex items-center gap-2 rounded-full border border-zk-border py-1 pr-3 pl-1 text-sm font-semibold">
             <Avatar name={ME.name} size={32} />
