@@ -15,6 +15,7 @@ const HEIGHT = 84; // canvas pixels
 const FLOOR = 80;
 const HIT_W = 30, HIT_H = 74;
 const SCALE = 1; // screen pixels per canvas pixel: about 68px tall robots
+const EDGE = 20; // canvas pixels: a lone robot stands this close to the left edge, clear of the page text
 
 /** What each agent is doing now. An escalation you've answered (merged, sent back, asked) stops escalating. */
 function useAgents(): (AgentBot & { now: AgentState })[] {
@@ -34,7 +35,9 @@ function useAgents(): (AgentBot & { now: AgentState })[] {
 export default function AgentLayer() {
   const prefs = useAgentPrefs();
   const agents = useAgents();
-  const visible = prefs.on ? agents.filter((a) => !prefs.hidden.includes(a.id)) : [];
+  const shown = prefs.on ? agents.filter((a) => !prefs.hidden.includes(a.id)) : [];
+  // One robot on its own goes to the far left; two or more keep their own spots.
+  const visible = shown.length === 1 ? [{ ...shown[0], home: 0 }] : shown;
   const [hover, setHover] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -42,13 +45,13 @@ export default function AgentLayer() {
   const anchors = useRef(new Map<string, HTMLElement>());
 
   // Keep each robot where it was when the list or a state changes.
-  const key = visible.map((a) => `${a.id}:${a.now}`).join(",");
+  const key = visible.map((a) => `${a.id}:${a.now}:${a.home}`).join(",");
   useEffect(() => {
     const width = Math.ceil(window.innerWidth / SCALE);
     const next = new Map<string, Runtime>();
     for (const a of visible) {
       const old = runtimes.current.get(a.id);
-      const x = old?.x ?? Math.round(a.home * width);
+      const x = old && old.bot.home === a.home ? old.x : Math.max(EDGE, Math.round(a.home * width));
       next.set(a.id, {
         bot: a, state: a.now, x, dir: old?.dir ?? (a.now === "idle" ? -1 : 1),
         walking: false, target: x, pauseUntil: 0, phase: 0, tapped: false,
@@ -78,7 +81,7 @@ export default function AgentLayer() {
 
       for (const rt of runtimes.current.values()) {
         if (rt.state === "idle" && !still) {
-          const home = Math.round(rt.bot.home * width);
+          const home = Math.max(EDGE, Math.round(rt.bot.home * width));
           wander(rt, t, dt, Math.max(16, home - 50), Math.min(width - 16, home + 50));
         }
         const pose = basePose(rt, still ? 0 : t, fx);
@@ -147,7 +150,7 @@ export default function AgentLayer() {
 type Shown = AgentBot & { now: AgentState };
 
 /** Pop-ups over robots near the edges open inwards, so they stay on screen. */
-const alignOf = (home: number) => (home < 0.2 ? "-translate-x-6" : home > 0.8 ? "-translate-x-[calc(100%-1.5rem)]" : "-translate-x-1/2");
+const alignOf = (home: number) => (home < 0.2 ? "-translate-x-4" : home > 0.8 ? "-translate-x-[calc(100%-1.5rem)]" : "-translate-x-1/2");
 
 function StateChip({ state }: { state: AgentState }) {
   const tone = state === "escalating" ? "border-zk-warn-bd bg-zk-warn-bg text-zk-warn-fg" : "border-transparent bg-zk-info-bg text-zk-info-fg";
