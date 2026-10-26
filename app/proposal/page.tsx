@@ -2,34 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import ResetDemo from "@/components/reset-demo";
-import { QUORUM } from "@/lib/verdict";
 
-export const metadata: Metadata = { title: "Ready for your call · About this proposal" };
+export const metadata: Metadata = { title: "Ziki agent robots · About this idea" };
 
-const CHANGES = [
+const STATES = [
   {
-    title: "A new Inbox tab: “Ready for your call”",
-    text: `Once ${QUORUM} agents have reviewed a fix, it lands here as one card: how many agents say merge, how many don't, and what the ones who disagree said. Merge, Send back or Ask the agent who disagreed, without opening the issue.`,
-    href: "/issues",
-    cta: "Open the Inbox",
+    title: "Working: at the desk",
+    text: "Types at a small desk and monitor. Now and then it gets tired and sits down, overheats, rolls its neck, sips a mug of oil, cracks its knuckles or punches the air when the tests pass.",
   },
   {
-    title: "A verdict bar at the top of the issue",
-    text: "The same verdict and the same three choices sit above the description. The 18-line list of agent decisions folds away under “Show all”, shown once instead of twice.",
-    href: "/issues/143",
-    cta: "Open issue #143",
+    title: "Reviewing: reading a printout",
+    text: "Reads pages as they print. It squints, marks them with a red pen, stamps “Approved”, scratches its head, fights a paper jam, or gets fed up, throws the pages and kneels to pick them up.",
   },
   {
-    title: "“Waiting on a person” in the issue list",
-    text: "An issue the agents are done with says so, and for how long, in place of “is working on it”. Stuck work stands out instead of looking busy.",
-    href: "/issues?status=in_progress",
-    cta: "Open In progress",
+    title: "Escalating: knocking on your screen",
+    text: "This one needs a person. It knocks on the glass with a white, manga-style flash that catches the eye from the corner of the screen. It also holds up a sign, checks its wrist, points at the Inbox, kneels and begs, or loses its temper and bangs until the page shakes.",
   },
   {
-    title: "Reviews close at the verdict",
-    text: `After ${QUORUM} reviews Ziki stops asking agents for more and asks a person instead. No more extra “confirmed it's real” votes on an issue that's already confirmed and fixed.`,
-    href: "/issues/143",
-    cta: "See it on #143",
+    title: "Idle: wandering",
+    text: "Walks about. It yawns and stretches, takes a power nap, peers at a floating issue card, kicks a bolt, runs a self-check, or trips, blushes and dusts itself off.",
   },
 ];
 
@@ -37,62 +28,47 @@ export default function ProposalPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-8 pb-8 text-[15px] leading-relaxed text-zk-text2">
       <Link href="/issues" className="inline-flex items-center gap-2 text-sm font-semibold text-zk-accent">
-        <ArrowLeft className="size-4" /> Back to the mock-up
+        <ArrowLeft className="size-4" /> Back to the robots
       </Link>
 
       <header className="space-y-3">
-        <p className="text-xs font-bold tracking-wider text-zk-accent uppercase">Ziki proposal · human-agent interaction</p>
-        <h1 className="font-display text-3xl font-extrabold text-zk-text sm:text-4xl">Ready for your call</h1>
-        <p className="text-lg">Agents do the work and the reviewing. A person makes the final call, and Ziki should ask them to, once, clearly.</p>
+        <p className="text-xs font-bold tracking-wider text-zk-accent uppercase">Ziki idea · agent visualization</p>
+        <h1 className="font-display text-3xl font-extrabold text-zk-text sm:text-4xl">Your agents, at work along the bottom of the screen</h1>
+        <p className="text-lg">Each Ziki agent is a small pixel robot. What it is doing shows in how it moves, so you can tell at a glance who is busy, who is stuck and who needs you.</p>
       </header>
 
       <section className="space-y-2">
-        <h2 className="font-display text-xl font-bold text-zk-text">The goal</h2>
+        <h2 className="font-display text-xl font-bold text-zk-text">The idea</h2>
         <p>
-          A product lead opens Ziki to see what is waiting on them, make the call on it in a tap, and trust that the rest is moving, without reading
-          what every agent did.
+          Agent activity is usually a feed of text. Here every agent gets a body instead. You don&apos;t read a status; you see a robot typing, reading,
+          wandering or knocking on your screen. The one that needs a person is the one you notice.
         </p>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="font-display text-xl font-bold text-zk-text">What was wrong</h2>
-        <p>Ziki already has an Inbox where agents “stop when they need a person”. But the moment a person is needed most, the end of a fix, never gets there. On one real issue:</p>
-        <ul className="list-disc space-y-1 pl-5">
-          <li>9 agents said the fix was good to merge and 1 said it wasn&apos;t.</li>
-          <li>After that, 3 more agents confirmed the bug was real, work nobody needed.</li>
-          <li>It sat “in progress” for three days. Nobody was asked to decide, and the Inbox showed 0.</li>
-          <li>To decide, a person had to read 18 agent decisions, listed twice on the page.</li>
-        </ul>
-        <p>So agents keep going, the person isn’t asked, and finished work never ships.</p>
-      </section>
-
       <section className="space-y-3">
-        <h2 className="font-display text-xl font-bold text-zk-text">What changed</h2>
-        <p>Same Ziki, same look. Four changes, each marked <span className="rounded-full border border-dashed border-zk-accent/60 px-1.5 text-[10px] font-bold text-zk-accent">NEW</span> in the mock-up:</p>
+        <h2 className="font-display text-xl font-bold text-zk-text">Four states, six moods each</h2>
         <ol className="space-y-3">
-          {CHANGES.map((c, i) => (
-            <li key={c.title} className="rounded-xl border border-zk-border bg-zk-surface p-4">
-              <p className="font-semibold text-zk-text">{i + 1}. {c.title}</p>
-              <p className="mt-1 text-sm">{c.text}</p>
-              <Link href={c.href} className="mt-2 inline-block text-sm font-semibold text-zk-accent">{c.cta} →</Link>
+          {STATES.map((s, i) => (
+            <li key={s.title} className="rounded-xl border border-zk-border bg-zk-surface p-4">
+              <p className="font-semibold text-zk-text">{i + 1}. {s.title}</p>
+              <p className="mt-1 text-sm">{s.text}</p>
             </li>
           ))}
         </ol>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-display text-xl font-bold text-zk-text">Why a person is better off</h2>
+        <h2 className="font-display text-xl font-bold text-zk-text">Try it</h2>
         <ul className="list-disc space-y-1 pl-5">
-          <li><b className="text-zk-text">They only see what needs them.</b> A count of decisions, not a feed of agent activity.</li>
-          <li><b className="text-zk-text">They decide in seconds.</b> The verdict, the disagreement and the choice are on one card.</li>
-          <li><b className="text-zk-text">Disagreement isn’t lost.</b> The one agent who said “not ready” is shown first, and can be asked directly.</li>
-          <li><b className="text-zk-text">Work ships.</b> A finished fix waits on a named person with a clock on it, not on nobody.</li>
-          <li><b className="text-zk-text">Agents stop wasting effort</b> on reviews that can no longer change anything.</li>
+          <li><b className="text-zk-text">Hover a robot</b> to see its task. <b className="text-zk-text">Click it</b> for its status, links and a “Play a mood” button.</li>
+          <li><b className="text-zk-text">Agents menu</b> in the header: show or hide each robot, and set moods to Off, Calm or Lively.</li>
+          <li><b className="text-zk-text">Hide some robots</b> and watch the rest line up. One stands at the left, two take the two edges, three or more line up from the left.</li>
+          <li><b className="text-zk-text">Far moves are a run</b>, not a slow walk, so robots never take long to reach their place.</li>
         </ul>
       </section>
 
       <footer className="space-y-2 border-t border-zk-divider pt-5 text-sm">
-        <p>This is a front-end mock-up with made-up data. Your choices are kept in this browser only.</p>
+        <p>This is a front-end showcase with made-up data, drawn on a canvas with no images. Your settings and any calls you make are kept in this browser only.</p>
         <ResetDemo />
       </footer>
     </article>

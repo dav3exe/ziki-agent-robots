@@ -11,7 +11,11 @@ export type Pose = {
   dir: 1 | -1;
   /** Upper body moved down by this many pixels (a servo settling, a step). */
   bob: number;
-  legs: { kind: "stand" } | { kind: "walk"; phase: number; run?: boolean };
+  /** Sitting on the floor, down on one knee, on both knees, or kicking (reach: -1 swung back to 1 kicked out). Lower the body with bob to match. */
+  legs:
+    | { kind: "stand" | "sit" | "kneel" | "knees" }
+    | { kind: "walk"; phase: number; run?: boolean }
+    | { kind: "kick"; reach: number };
   /** Side view: the near arm. Front view: the arm on the viewer's right. */
   near: Arm;
   /** Side view: the far arm. Front view: the arm on the viewer's left. */
@@ -20,6 +24,8 @@ export type Pose = {
   tilt: number;
   pan: number;
   visor: string;
+  /** Visor height in pixels: 5 normally, 2 when squinting, 7 for a yawn. */
+  visorH?: number;
   /** A light that sweeps across the visor, line by line. */
   scan: boolean;
   led: string;
@@ -35,12 +41,15 @@ export type Pose = {
 const GLASS = "#0b1426";
 const WHITE = "#ffffff";
 
-function visor(p: Painter, x: number, y: number, w: number, pose: Pose, t: number) {
-  p.rect(x - 1, y - 1, w + 2, 7, GLASS);
-  p.rect(x, y, w, 5, pose.visor);
+function visor(p: Painter, x: number, y0: number, w: number, pose: Pose, t: number) {
+  const h = pose.visorH ?? 5;
+  // A narrow visor sits in the middle of the frame; a tall one grows downwards.
+  const y = h < 5 ? y0 + Math.floor((5 - h) / 2) : y0;
+  p.rect(x - 1, y - 1, w + 2, h + 2, GLASS);
+  p.rect(x, y, w, h, pose.visor);
   p.rect(x, y, w, 1, "#dbe7fd");
-  p.rect(x, y + 4, w, 1, "rgba(0,0,0,0.25)");
-  if (pose.scan) p.rect(x + (Math.floor(t * 6) % w), y + 1, 1, 3, WHITE);
+  if (h > 2) p.rect(x, y + h - 1, w, 1, "rgba(0,0,0,0.25)");
+  if (pose.scan) p.rect(x + (Math.floor(t * 6) % w), y + 1, 1, Math.max(1, h - 2), WHITE);
   else p.rect(x + 1, y + 1, 2, 1, "rgba(255,255,255,0.7)");
 }
 
@@ -52,14 +61,22 @@ function led(p: Painter, x: number, y: number, pose: Pose, t: number, size = 2) 
 function sideLeg(p: Painter, pal: Palette, near: boolean, footX: number, lift: number, bend = 2.5) {
   const hipY = -28;
   const ankle: Point = [footX, -4 - lift];
-  const knee: Point = [(footX + 0) / 2 + bend, (hipY + ankle[1]) / 2];
+  legTo(p, pal, near, [0, hipY], [footX / 2 + bend, (hipY + ankle[1]) / 2], ankle, false);
+}
+
+/** One leg from hip to knee to ankle. The foot is flat on the ground, or just a toe when the shin lies on the floor. */
+function legTo(p: Painter, pal: Palette, near: boolean, hip: Point, knee: Point, ankle: Point, toe: boolean) {
   const c = near ? pal[2] : pal[3], top = near ? pal[1] : pal[2];
-  p.line(0, hipY, knee[0], knee[1], 5, c, top);
+  p.line(hip[0], hip[1], knee[0], knee[1], 5, c, top);
   p.line(knee[0], knee[1], ankle[0], ankle[1], 4, c, top);
   p.disc(Math.round(knee[0]), Math.round(knee[1]), 2, near ? pal[3] : pal[4], near ? pal[2] : undefined);
-  p.rect(footX - 4, -3 - Math.round(lift), 10, 3, near ? pal[3] : pal[4]);
-  p.rect(footX - 4, -3 - Math.round(lift), 10, 1, c);
-  p.rect(footX + 5, -2 - Math.round(lift), 1, 2, near ? pal[4] : "#11151f");
+  if (toe) {
+    p.rect(ankle[0] - 3, ankle[1] - 1, 3, 3, near ? pal[3] : pal[4]);
+    return;
+  }
+  p.rect(ankle[0] - 4, ankle[1] + 1, 10, 3, near ? pal[3] : pal[4]);
+  p.rect(ankle[0] - 4, ankle[1] + 1, 10, 1, c);
+  p.rect(ankle[0] + 5, ankle[1] + 2, 1, 2, near ? pal[4] : "#11151f");
 }
 
 function sideArm(p: Painter, pal: Palette, arm: Arm, bob: number, near: boolean, outline = false) {
@@ -87,9 +104,22 @@ export function drawSide(p: Painter, pal: Palette, pose: Pose, t: number) {
   sideArm(p, pal, pose.far, b, false);
   p.x = base;
 
-  // Legs: far one first.
+  // Legs: far one first. Sitting and kneeling hang from a hip lowered by bob.
+  const hipY = -28 + b;
   for (const near of [false, true]) {
-    if (pose.legs.kind === "walk" && pose.legs.run) {
+    const dx = near ? 0 : -1;
+    if (pose.legs.kind === "sit") {
+      legTo(p, pal, near, [dx, hipY], [dx + 8, -7], [dx + 15, -4], false);
+    } else if (pose.legs.kind === "kneel") {
+      if (near) legTo(p, pal, near, [0, hipY], [3, -3], [-8, -3], true);
+      else legTo(p, pal, near, [0, hipY], [8, hipY + 4], [8, -4], false);
+    } else if (pose.legs.kind === "knees") {
+      legTo(p, pal, near, [dx, hipY], [dx + 4, -3], [dx - 7, -3], true);
+    } else if (pose.legs.kind === "kick") {
+      const r = pose.legs.reach;
+      if (near) sideLeg(p, pal, near, -2 + r * 12, Math.max(0, r) * 7, 2.5 - Math.max(0, r) * 2);
+      else sideLeg(p, pal, near, -2, 0);
+    } else if (pose.legs.kind === "walk" && pose.legs.run) {
       // Running: a long stride, and the leg coming forward lifts its knee high.
       const ph = pose.legs.phase + (near ? 0 : Math.PI);
       const lift = Math.max(0, Math.cos(ph)) * 8;
@@ -161,16 +191,28 @@ export function drawFront(p: Painter, pal: Palette, pose: Pose, t: number) {
   p.at(p.x, 1);
   p.shadow(26);
 
-  // Legs.
+  // Legs. On its knees, the thighs come straight down to knee pads on the floor and the feet are hidden behind.
+  const kneeling = pose.legs.kind === "knees" || pose.legs.kind === "kneel";
   for (const [lx, c, top] of [[-7, pal[2], pal[1]], [3, pal[3], pal[2]]] as const) {
+    if (kneeling) {
+      // Short thighs down to wide knee pads on the floor, with the soles of the feet showing behind.
+      p.rect(lx - 1, -6, 7, 3, pal[4]);
+      p.rect(lx, -28 + b, 5, Math.max(4, 25 - b), c);
+      p.rect(lx, -28 + b, 1, Math.max(4, 25 - b), top);
+      p.rect(lx - 1, -4, 7, 4, pal[3]);
+      p.rect(lx - 1, -4, 7, 1, pal[1]);
+      continue;
+    }
     p.rect(lx, -28, 5, 25, c);
     p.rect(lx, -28, 1, 25, top);
     p.disc(lx + 2, -15, 2, pal[3], pal[2]);
   }
-  p.rect(-9, -3, 8, 3, pal[3]);
-  p.rect(1, -3, 8, 3, pal[4]);
-  p.rect(-9, -3, 8, 1, pal[2]);
-  p.rect(1, -3, 8, 1, pal[3]);
+  if (!kneeling) {
+    p.rect(-9, -3, 8, 3, pal[3]);
+    p.rect(1, -3, 8, 3, pal[4]);
+    p.rect(-9, -3, 8, 1, pal[2]);
+    p.rect(1, -3, 8, 1, pal[3]);
+  }
 
   // Pelvis and torso.
   p.rect(-8, -31 + b, 16, 4, pal[2]);

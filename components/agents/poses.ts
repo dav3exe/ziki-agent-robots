@@ -1,4 +1,5 @@
 import type { AgentBot, AgentState } from "@/lib/agents";
+import type { Mood } from "./moods";
 import type { Arm, Pose } from "./robot";
 
 /** One robot on screen, and what it's doing right now. */
@@ -18,10 +19,17 @@ export type Runtime = {
   pauseUntil: number;
   phase: number;
   tapped: boolean;
+  /** The mood playing now, the next one's start time, which one is next, and a request to play one right away. */
+  mood: { mood: Mood; start: number } | null;
+  nextMood: number;
+  moodIndex: number;
+  forceMood: boolean;
+  /** The last knock or bang a mood has fired, so each fires once. */
+  beat: number;
 };
 
-/** Things a pose can set off, like a tap on the glass. */
-export type Effects = { tap: (x: number, y: number) => void };
+/** Things a pose can set off: a tap on the glass (smaller for a polite one), a heavy bang, the screen shaking. */
+export type Effects = { tap: (x: number, y: number, scale?: number) => void; bang: (x: number, y: number) => void; shake: () => void };
 
 const VISOR = { working: "#8fc9ff", reviewing: "#8fc9ff", escalating: "#f6cf6b", idle: "#4f7fc4" };
 const LED = { working: "#6ee7a8", reviewing: "#8fc9ff", escalating: "#f6cf6b", idle: "#3978f6" };
@@ -32,7 +40,7 @@ const settle = (t: number, seed: number) => (Math.sin(t * 1.1 + seed) > 0.9 ? 1 
 /** Short, precise keystrokes: each hand is either up or on the key. */
 const key = (t: number, seed: number) => (Math.sin(t * 13 + seed) > 0 ? 0 : -1);
 
-/** The pose for what the robot is doing normally. The moods (tired, fed up and so on) come in later. */
+/** The pose for what the robot is doing normally. Moods (moods.ts) play on top of it now and then. */
 export function basePose(rt: Runtime, t: number, fx: Effects): Pose {
   const common = { visor: VISOR[rt.state], led: LED[rt.state], tilt: 0, pan: 0, scan: false, blink: false };
   const seed = rt.x;

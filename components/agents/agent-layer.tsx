@@ -7,7 +7,8 @@ import { useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS, type AgentBot, type AgentState, STATE_LABEL } from "@/lib/agents";
 import { useCalls } from "@/lib/calls";
 import { Painter } from "./painter";
-import { basePose, lineUp, rightInset, type Runtime, walkTo, wander } from "./poses";
+import { updateMood } from "./moods";
+import { basePose, type Effects, lineUp, rightInset, type Runtime, walkTo, wander } from "./poses";
 import { drawDesk, drawPrintout, drawRipples, type Ripple } from "./props";
 import { drawFront, drawSide } from "./robot";
 
@@ -48,6 +49,9 @@ export default function AgentLayer() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const runtimes = useRef(new Map<string, Runtime>());
   const anchors = useRef(new Map<string, HTMLElement>());
+  // Read by the animation loop, which runs outside React.
+  const pace = useRef(prefs.moods);
+  pace.current = prefs.moods;
 
   // When the line changes, robots already on screen walk to their new place. One switched back on walks in from the nearest edge.
   const key = visible.map((a) => `${a.id}:${a.now}`).join(",");
@@ -62,6 +66,9 @@ export default function AgentLayer() {
       next.set(a.id, {
         bot: a, state: a.now, x, slot, end, dir: old?.dir ?? 1,
         walking: false, running: false, target: x, pauseUntil: 0, phase: old?.phase ?? 0, tapped: false,
+        // A mood carries on through a change in the line, unless what the agent is doing changed.
+        mood: old?.state === a.now ? old.mood : null, nextMood: old?.nextMood ?? NaN, beat: old?.beat ?? -1, forceMood: false,
+        moodIndex: old?.moodIndex ?? Math.floor(Math.random() * 6),
       });
     });
     runtimes.current = next;
@@ -76,7 +83,8 @@ export default function AgentLayer() {
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const painter = new Painter(ctx, FLOOR);
     const ripples: Ripple[] = [];
-    let frame = 0, last = 0;
+    let frame = 0, last = 0, shakeUntil = 0, shaking = false;
+    const band = el.parentElement, page = document.querySelector("main");
 
     const draw = (now: number) => {
       const t = now / 1000, dt = Math.min(0.05, last ? t - last : 0);
@@ -84,23 +92,46 @@ export default function AgentLayer() {
       const width = Math.ceil(window.innerWidth / SCALE);
       if (el.width !== width) el.width = width;
       ctx.clearRect(0, 0, el.width, el.height);
-      const fx = { tap: (x: number, y: number) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "214,48,48", size: 14 }) };
+      const fx: Effects = {
+        tap: (x, y, scale = 1) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "214,48,48", size: 14, scale }),
+        bang: (x, y) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "235,40,40", size: 18, scale: 1.6 }),
+        shake: () => (shakeUntil = t + 0.22),
+      };
+      const quiet: Effects = { tap: () => {}, bang: () => {}, shake: () => {} };
+
+      // A heavy bang shakes the robots and the page behind them for a moment.
+      if (t < shakeUntil || shaking) {
+        shaking = t < shakeUntil;
+        const move = shaking ? `translate(${Math.round(Math.random() * 4 - 2)}px, ${Math.round(Math.random() * 2 - 1)}px)` : "";
+        if (band) band.style.transform = move;
+        if (page) page.style.transform = move;
+      }
 
       for (const rt of runtimes.current.values()) {
         if (rt.end) rt.slot = width - rightInset(rt.state);
+        if (!still) updateMood(rt, t, pace.current);
         if (still) rt.x = rt.slot;
+        // A robot in the middle of a mood stays where it is until the mood ends.
+        else if (rt.mood) rt.walking = rt.running = false;
         // At the right edge, an idle robot strolls between there and about the middle of the screen.
         else if (rt.state === "idle" && rt.end) wander(rt, t, dt, Math.min(rt.slot, Math.round(width * 0.45)), rt.slot);
         else if (rt.state === "idle") wander(rt, t, dt, rt.slot, Math.max(rt.slot, Math.min(width - 16, rt.slot + ROAM)));
         // Hurries over long distances (like crossing to the right edge) and slows to a walk as it arrives.
         else walkTo(rt, rt.slot, dt, Math.min(120, Math.max(24, Math.abs(rt.slot - rt.x) * 0.8)));
-        const pose = basePose(rt, still ? 0 : t, fx);
+        const base = basePose(rt, still ? 0 : t, rt.mood ? quiet : fx);
+        const m = rt.mood && { rt, u: (t - rt.mood.start) / rt.mood.mood.seconds, t: t - rt.mood.start, base, fx };
+        const mood = rt.mood?.mood;
+        const pose = m && mood ? mood.pose(m) : base;
         // The desk stays at its place in the line; a robot on its way walks up to it.
         if (rt.state === "working") drawDesk(painter.at(rt.slot, 1), t, !still);
         painter.at(Math.round(rt.x), pose.dir);
         if (pose.view === "front") drawFront(painter, rt.bot.palette, pose, t);
         else drawSide(painter, rt.bot.palette, pose, t);
-        if (rt.state === "reviewing" && !rt.walking) drawPrintout(painter.at(Math.round(rt.x), 1), still ? 0 : t);
+        if (rt.state === "reviewing" && !rt.walking) {
+          const sheet = m && mood?.sheet ? mood.sheet(m.u) : [0, 0];
+          drawPrintout(painter.at(Math.round(rt.x), 1), still ? 0 : t, sheet as [number, number] | null, !(m && mood?.jammed?.(m.u)));
+        }
+        if (m && mood?.props) mood.props(painter.at(Math.round(rt.x), pose.view === "front" ? 1 : pose.dir), m, pose);
 
         const anchor = anchors.current.get(rt.bot.id);
         if (anchor) anchor.style.left = `${Math.round(rt.x * SCALE)}px`;
@@ -109,7 +140,11 @@ export default function AgentLayer() {
       if (!still) frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (band) band.style.transform = "";
+      if (page) page.style.transform = "";
+    };
   }, [visible.length, key]);
 
   useEffect(() => {
@@ -125,6 +160,11 @@ export default function AgentLayer() {
   const alignAt = (id: string) => {
     const x = (runtimes.current.get(id)?.x ?? 0) * SCALE;
     return x < 160 ? "-translate-x-4" : x > window.innerWidth - 160 ? "-translate-x-[calc(100%-1rem)]" : "-translate-x-1/2";
+  };
+  // Plays the robot's next mood straight away, so a demo can step through them all.
+  const playMood = (id: string) => {
+    const rt = runtimes.current.get(id);
+    if (rt) rt.forceMood = true;
   };
   const show = (id: string) => {
     setAlign(alignAt(id));
@@ -162,7 +202,7 @@ export default function AgentLayer() {
               style={{ width: px(HIT_W), height: px(HIT_H) }}
             />
             {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={align} />}
-            {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={align} onClose={() => setOpen(null)} />}
+            {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={align} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
           </div>
         ))}
       </div>
@@ -188,7 +228,7 @@ function Hover({ agent, bottom, align }: { agent: Shown; bottom: string; align: 
   );
 }
 
-function AgentCard({ agent, bottom, align, onClose }: { agent: Shown; bottom: string; align: string; onClose: () => void }) {
+function AgentCard({ agent, bottom, align, onClose, onMood }: { agent: Shown; bottom: string; align: string; onClose: () => void; onMood: () => void }) {
   return (
     <div role="dialog" aria-label={agent.name} className={`pointer-events-auto absolute w-72 ${align} rounded-xl border border-zk-border bg-zk-surface p-4 text-sm shadow-xl`} style={{ bottom }}>
       <div className="flex items-center justify-between gap-2">
@@ -208,6 +248,9 @@ function AgentCard({ agent, bottom, align, onClose }: { agent: Shown; bottom: st
         ) : (
           <Link href="/issues?status=open" onClick={onClose} className="rounded-[10px] border border-zk-border px-3 py-1.5 text-xs font-semibold">Give it an issue</Link>
         )}
+        <button type="button" onClick={onMood} className="rounded-[10px] border border-dashed border-zk-accent/60 px-3 py-1.5 text-xs font-semibold text-zk-accent">
+          Play a mood
+        </button>
       </div>
     </div>
   );

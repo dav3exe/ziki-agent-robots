@@ -25,9 +25,9 @@ export function drawDesk(p: Painter, t: number, busy: boolean) {
   if (busy && Math.floor(t * 2) % 2) p.rect(26, -54 + 15, 2, 1, "#e8eef9");
 }
 
-/** A long printout held up to read, folding down to a pile on the floor. The paper feeds while it reads. */
-export function drawPrintout(p: Painter, t: number) {
-  const feed = Math.floor(t * 0.8) % 2;
+/** A long printout held up to read, folding down to a pile on the floor. The paper feeds while it reads, unless it's jammed. */
+export function drawPrintout(p: Painter, t: number, sheet: [number, number] | null = [0, 0], feeding = true) {
+  const feed = feeding ? Math.floor(t * 0.8) % 2 : 0;
   for (let y = -38, i = 0; y < -5; y += 4, i++) {
     const x = (i + feed) % 2 ? 15 : 11;
     p.rect(x, y, 9, 4, "#dfe5ee");
@@ -38,12 +38,15 @@ export function drawPrintout(p: Painter, t: number) {
   p.rect(9, -6, 19, 1, "#e8eef9");
   p.rect(10, -3, 17, 1, "#b7c3da");
   // The sheet in its hands.
-  p.rect(10, -51, 10, 13, "#e8eef9");
-  p.rect(10, -51, 10, 1, "#ffffff");
-  for (let k = 0; k < 5; k++) p.rect(11, -49 + k * 2, k === 2 ? 5 : 8, 1, "#93a0b8");
+  if (!sheet) return;
+  const [sx, sy] = sheet;
+  p.rect(10 + sx, -51 + sy, 10, 13, "#e8eef9");
+  p.rect(10 + sx, -51 + sy, 10, 1, "#ffffff");
+  for (let k = 0; k < 5; k++) p.rect(11 + sx, -49 + sy + k * 2, k === 2 ? 5 : 8, 1, "#93a0b8");
 }
 
-export type Ripple = { x: number; y: number; born: number; rgb: string; size: number };
+/** scale sizes the burst: under 1 for a polite tap, over 1 for a bang (which also gets a thicker red edge). */
+export type Ripple = { x: number; y: number; born: number; rgb: string; size: number; scale: number };
 
 /** How far each point of the impact star reaches, so the burst looks hand-drawn rather than even. */
 const SPIKES = [12, 8, 14, 9, 11, 7, 13, 9, 12];
@@ -66,16 +69,17 @@ export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t:
     if (age < 0.55) {
       const size = age < 0.08 ? 1.15 : 1 - (age - 0.08) * 0.7;
       const alpha = age < 0.35 ? 1 : 1 - (age - 0.35) / 0.2;
-      for (let dy = -16; dy <= 16; dy++) {
-        for (let dx = -17; dx <= 17; dx++) {
+      const reach = Math.ceil(17 * r.scale), rim = r.scale > 1.2 ? 3 : 1.2;
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
           const d = Math.hypot(dx, dy * 1.15);
-          if (d > 17) continue;
+          if (d > reach) continue;
           const turn = (((Math.atan2(dy, dx) + spin) / (Math.PI * 2)) * SPIKES.length + SPIKES.length) % SPIKES.length;
           const k = Math.floor(turn);
           const towardsTip = 1 - Math.abs(turn - k - 0.5) * 2;
-          const edge = (5 + (SPIKES[(k + seed) % SPIKES.length] - 5) * towardsTip) * size;
+          const edge = (5 + (SPIKES[(k + seed) % SPIKES.length] - 5) * towardsTip) * size * r.scale;
           if (d > edge) continue;
-          ctx.fillStyle = d > edge - 1.2 ? `rgba(${r.rgb},${(alpha * 0.85).toFixed(2)})` : `rgba(255,255,255,${alpha.toFixed(2)})`;
+          ctx.fillStyle = d > edge - rim ? `rgba(${r.rgb},${(alpha * 0.85).toFixed(2)})` : `rgba(255,255,255,${alpha.toFixed(2)})`;
           ctx.fillRect(cx + dx, cy + dy, 1, 1);
         }
       }
@@ -83,7 +87,7 @@ export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t:
 
     // Speed lines: short white dashes flying outwards between the points.
     if (age < 0.75) {
-      const from = 13 + age * r.size, length = Math.max(2, 7 * (1 - age));
+      const from = (13 + age * r.size) * r.scale, length = Math.max(2, 7 * (1 - age) * r.scale);
       ctx.fillStyle = `rgba(255,255,255,${(1 - age / 0.75).toFixed(2)})`;
       for (let k = 0; k < 8; k++) {
         const a = spin + 0.2 + (k * Math.PI * 2) / 8;

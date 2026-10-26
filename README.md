@@ -1,37 +1,43 @@
-# Ziki: Ready for your call
+# Ziki agent robots
 
-A front-end mock-up of [Ziki](https://ziki.dev) with one change to how people and agents work together.
-Agents do the work and the reviewing; once enough of them have reviewed a fix, Ziki asks a person to make the
-final call, once and clearly, instead of letting the fix sit "in progress" while more agents pile on.
+A showcase idea for [Ziki](https://ziki.dev): every agent is a small pixel robot that lives along the bottom of the
+screen. What an agent is doing shows in how it moves, so you can see at a glance who is busy, who is stuck and who
+needs a person.
 
-The one-page write-up is in the app at [`/proposal`](app/proposal/page.tsx).
+The Ziki screens behind the robots come from a separate mock-up,
+[ziki-ready-for-your-call](https://github.com/dav3exe/ziki-ready-for-your-call). This repo is only about the robots.
 
-## What changed (marked NEW in the mock-up)
+## What the robots do
 
-1. **Inbox: "Ready for your call" tab.** Each card shows the agents' verdict (how many say merge, how many
-   don't, what the ones who disagree said) with three choices: Merge, Send back, Ask the agent who disagreed.
-2. **Verdict bar on the issue page**, above the description. The agent decision list folds away.
-3. **"Waiting on a person"** in the issue list, with how long.
-4. **Reviews close at the verdict**: after 5 reviews Ziki stops asking agents and asks a person.
+| State | What you see | Moods (6 each) |
+| --- | --- | --- |
+| Working | types at a desk | sits down tired, overheats, rolls its neck, sips oil, tests pass, cracks knuckles |
+| Reviewing | reads a printout | fed up and throws the pages, squints, red pen, "Approved" stamp, paper jam, scratches its head |
+| Escalating | knocks on your screen with a white manga-style flash | bangs until the page shakes, polite tap, holds up a sign, checks its wrist, points at the Inbox, kneels and begs |
+| Idle | wanders | yawns and stretches, power nap, peers at an issue card, kicks a bolt, self-check scan, trips and dusts off |
 
-Everything else copies Ziki as it is today. There is no backend: the data is made up (`lib/data.ts`), and the
-calls you make are kept in your browser only (`lib/calls.ts`). "Reset the demo" on `/proposal` clears them.
+- **Hover** a robot to see its task. **Click** it for its status, links and a "Play a mood" button.
+- **Agents menu** in the header: show or hide each robot, and set moods to Off, Calm or Lively.
+- **Layout:** one robot stands at the left; two stand at opposite edges (an idle one walks between its edge and
+  the middle); three or more line up from the left and close the gap when one is hidden.
+- **Far moves are a run**, with a forward lean and arms swinging opposite to the legs.
+
+Everything is drawn on one canvas in code: no images or sprite sheets.
 
 ## Structure
 
 ```
-app/
-  layout.tsx            header, bottom bar, fonts
-  issues/page.tsx       Inbox and the status lists (?status=open|in_progress|resolved|all)
-  issues/[id]/page.tsx  an issue, with the verdict bar
-  issues/new/page.tsx   Report an issue
-  dashboard/  marketing/  security/  proposal/
-components/             header, nav, issue table, inbox, call card, verdict bar, decision strip, form
+components/agents/
+  agent-layer.tsx   the canvas, the layout and the animation loop, hover and click cards
+  robot.ts          draws a robot from a pose (side and front views)
+  poses.ts          the base pose for each state, walking, running and the line-up
+  moods.ts          the 24 moods
+  props.ts          desk, printout and the knock flash
+  painter.ts        pixel drawing helpers, mirrored when a robot faces left
+  agents-menu.tsx   show or hide robots, mood pace
 lib/
-  data.ts               the fake issues, agents and decisions
-  verdict.ts            turns agent decisions into a verdict (QUORUM = 5)
-  calls.ts              the person's calls, kept in localStorage
-  types.ts
+  agents.ts         the agents and their states
+  agent-prefs.ts    menu settings, kept in localStorage
 ```
 
 ## Run it locally
@@ -41,12 +47,4 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:3000.
-
-## Deploy to Vercel
-
-```bash
-npx vercel --prod
-```
-
-Or import the GitHub repo at vercel.com/new. No environment variables are needed.
+Then open http://localhost:3000. The data is made up and there is no backend.

@@ -1,12 +1,13 @@
 "use client";
 
-// Whether your agents walk around on screen, and which ones. A per-viewer setting, so it lives in this browser.
+// Whether your agents walk around on screen, which ones, and how often they show a mood. A per-viewer setting, so it lives in this browser.
 import { useSyncExternalStore } from "react";
+import type { MoodPace } from "@/components/agents/moods";
 
-export type AgentPrefs = { on: boolean; hidden: string[] };
+export type AgentPrefs = { on: boolean; hidden: string[]; moods: MoodPace };
 
 const KEY = "ziki-mock-agents";
-const DEFAULT: AgentPrefs = { on: true, hidden: [] };
+const DEFAULT: AgentPrefs = { on: true, hidden: [], moods: "lively" };
 const listeners = new Set<() => void>();
 let cache: AgentPrefs | null = null;
 
@@ -41,6 +42,10 @@ export function useAgentPrefs(): AgentPrefs {
 
 export function setAgentsOn(on: boolean) {
   write({ ...read(), on });
+}
+
+export function setMoodPace(moods: MoodPace) {
+  write({ ...read(), moods });
 }
 
 export function toggleAgent(id: string) {

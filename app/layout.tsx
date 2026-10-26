@@ -11,8 +11,8 @@ const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ziki · Ready for your call (mock-up)",
-  description: "A mock-up of Ziki where agent verdicts become one clear decision for a person.",
+  title: "Ziki agent robots",
+  description: "Ziki agents shown as pixel robots along the bottom of the screen, working, reviewing, knocking for a person or wandering.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

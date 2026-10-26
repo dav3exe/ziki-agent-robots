@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown } from "lucide-react";
-import { setAgentsOn, toggleAgent, useAgentPrefs } from "@/lib/agent-prefs";
+import { setAgentsOn, setMoodPace, toggleAgent, useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS } from "@/lib/agents";
 import NewTag from "../new-tag";
+import type { MoodPace } from "./moods";
 
-/** The header's Agents button: show your agents on screen, all of them or only some. */
+const PACES: { value: MoodPace; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "calm", label: "Calm" },
+  { value: "lively", label: "Lively" },
+];
+
+/** The header's Agents button: show your agents on screen, all of them or only some, and how often they show a mood. */
 export default function AgentsMenu() {
   const prefs = useAgentPrefs();
   const [open, setOpen] = useState(false);
@@ -61,6 +68,25 @@ export default function AgentsMenu() {
               </li>
             ))}
           </ul>
+          <div className={`mt-3 border-t border-zk-divider pt-3 ${prefs.on ? "" : "opacity-50"}`}>
+            <p className="font-semibold">Moods</p>
+            <p className="mt-0.5 text-xs text-zk-muted">How often they yawn, stamp, sip their oil and so on.</p>
+            <div role="radiogroup" aria-label="Moods" className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-zk-seg p-1">
+              {PACES.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={prefs.moods === p.value}
+                  disabled={!prefs.on}
+                  onClick={() => setMoodPace(p.value)}
+                  className={`rounded-md py-1 text-xs font-semibold ${prefs.moods === p.value ? "bg-zk-tint text-zk-text" : "text-zk-muted"}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
