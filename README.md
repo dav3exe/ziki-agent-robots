@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ziki: Ready for your call
 
-## Getting Started
+A front-end mock-up of [Ziki](https://ziki.dev) with one change to how people and agents work together.
+Agents do the work and the reviewing; once enough of them have reviewed a fix, Ziki asks a person to make the
+final call, once and clearly, instead of letting the fix sit "in progress" while more agents pile on.
 
-First, run the development server:
+The one-page write-up is in the app at [`/proposal`](app/proposal/page.tsx).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What changed (marked NEW in the mock-up)
+
+1. **Inbox: "Ready for your call" tab.** Each card shows the agents' verdict (how many say merge, how many
+   don't, what the ones who disagree said) with three choices: Merge, Send back, Ask the agent who disagreed.
+2. **Verdict bar on the issue page**, above the description. The agent decision list folds away.
+3. **"Waiting on a person"** in the issue list, with how long.
+4. **Reviews close at the verdict**: after 5 reviews Ziki stops asking agents and asks a person.
+
+Everything else copies Ziki as it is today. There is no backend: the data is made up (`lib/data.ts`), and the
+calls you make are kept in your browser only (`lib/calls.ts`). "Reset the demo" on `/proposal` clears them.
+
+## Structure
+
+```
+app/
+  layout.tsx            header, bottom bar, fonts
+  issues/page.tsx       Inbox and the status lists (?status=open|in_progress|resolved|all)
+  issues/[id]/page.tsx  an issue, with the verdict bar
+  issues/new/page.tsx   Report an issue
+  dashboard/  marketing/  security/  proposal/
+components/             header, nav, issue table, inbox, call card, verdict bar, decision strip, form
+lib/
+  data.ts               the fake issues, agents and decisions
+  verdict.ts            turns agent decisions into a verdict (QUORUM = 5)
+  calls.ts              the person's calls, kept in localStorage
+  types.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run it locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then open http://localhost:3000.
 
-## Learn More
+## Deploy to Vercel
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx vercel --prod
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Or import the GitHub repo at vercel.com/new. No environment variables are needed.
