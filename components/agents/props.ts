@@ -49,33 +49,38 @@ export type Ripple = { x: number; y: number; born: number; rgb: string; size: nu
 export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t: number) {
   for (let i = ripples.length - 1; i >= 0; i--) {
     const r = ripples[i];
-    const age = (t - r.born) / 0.9;
+    const age = (t - r.born) / 1.1;
     if (age >= 1) {
       ripples.splice(i, 1);
       continue;
     }
-    // A short, bright flash where the knuckle lands, to catch the eye, then it fades fast.
+    // A bright flash where the knuckle lands, big enough to catch the corner of your eye, then it fades.
     const cx = Math.round(r.x), cy = Math.round(r.y);
-    if (age < 0.4) {
-      const glow = 1 - age / 0.4;
-      // Round pixel glow: dimmer outside, stronger towards the middle.
-      for (let dy = -6; dy <= 6; dy++) {
-        for (let dx = -7; dx <= 7; dx++) {
+    if (age < 0.5) {
+      const glow = 1 - age / 0.5;
+      // Round pixel glow: strongest in the middle, fading out in bands.
+      for (let dy = -10; dy <= 10; dy++) {
+        for (let dx = -12; dx <= 12; dx++) {
           const d = Math.hypot(dx, dy * 1.2);
-          if (d > 7) continue;
-          ctx.fillStyle = `rgba(${r.rgb},${(glow * (d < 4 ? 0.75 : 0.3)).toFixed(2)})`;
+          if (d > 12) continue;
+          ctx.fillStyle = `rgba(${r.rgb},${(glow * (d < 4 ? 0.95 : d < 8 ? 0.6 : 0.25)).toFixed(2)})`;
           ctx.fillRect(cx + dx, cy + dy, 1, 1);
         }
       }
-      ctx.fillStyle = `rgba(255,225,220,${glow.toFixed(2)})`;
-      ctx.fillRect(cx - 1, cy - 1, 3, 3);
-      ctx.fillRect(cx - 5, cy, 11, 1);
-      ctx.fillRect(cx, cy - 4, 1, 9);
+      // A white-hot core with a soft bloom of red light around it.
+      ctx.save();
+      ctx.shadowColor = `rgba(${r.rgb},${glow.toFixed(2)})`;
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = `rgba(255,236,232,${glow.toFixed(2)})`;
+      ctx.fillRect(cx - 2, cy - 2, 5, 5);
+      ctx.fillRect(cx - 8, cy, 17, 1);
+      ctx.fillRect(cx, cy - 7, 1, 15);
+      ctx.restore();
     }
-    const radius = 2 + age * r.size;
+    const radius = 3 + age * r.size;
     ctx.fillStyle = `rgba(${r.rgb},${(1 - age).toFixed(2)})`;
-    for (let a = 0; a < Math.PI * 2; a += 0.22) {
-      ctx.fillRect(Math.round(r.x + Math.cos(a) * radius), Math.round(r.y + Math.sin(a) * radius * 0.75), age < 0.5 ? 2 : 1, 1);
+    for (let a = 0; a < Math.PI * 2; a += 0.15) {
+      ctx.fillRect(Math.round(r.x + Math.cos(a) * radius), Math.round(r.y + Math.sin(a) * radius * 0.75), 2, age < 0.6 ? 2 : 1);
     }
   }
 }

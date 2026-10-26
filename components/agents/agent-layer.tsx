@@ -79,7 +79,7 @@ export default function AgentLayer() {
       const width = Math.ceil(window.innerWidth / SCALE);
       if (el.width !== width) el.width = width;
       ctx.clearRect(0, 0, el.width, el.height);
-      const fx = { tap: (x: number, y: number) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "255,59,59", size: 16 }) };
+      const fx = { tap: (x: number, y: number) => ripples.push({ x, y: FLOOR + y, born: t, rgb: "255,59,59", size: 24 }) };
 
       for (const rt of runtimes.current.values()) {
         if (still) rt.x = rt.slot;
