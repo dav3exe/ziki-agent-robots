@@ -63,6 +63,14 @@ function check(p: Painter, x: number, y: number, color: string) {
   for (const [dx, dy] of [[0, 0], [1, 1], [2, 2], [3, 1], [4, 0], [5, -1], [6, -2]]) p.rect(x + dx, y + dy, 1, 1, color);
 }
 
+/** An X the same size as the tick, from its top-left. */
+function cross(p: Painter, x: number, y: number, color: string) {
+  for (let i = 0; i < 6; i++) {
+    p.rect(x + i, y + i, 1, 1, color);
+    p.rect(x + 5 - i, y + i, 1, 1, color);
+  }
+}
+
 // ---- Working: at the desk, typing. ----
 
 const WORKING: Mood[] = [
@@ -74,13 +82,21 @@ const WORKING: Mood[] = [
       const drop = Math.round(26 * k);
       const wiping = m.u > 0.25 && m.u < 0.8;
       const wipe = arm([10, -52], [3 + Math.sin(m.t * 5) * 6, -61]);
+      const red = m.u > 0.08 && m.u < 0.9;
       return side(m, {
-        bob: drop, legs: lowered(drop), tilt: k > 0.5 ? 1 : 0, glow: false, visor: k > 0.5 ? "#6d8fbf" : m.base.visor,
+        bob: drop, legs: lowered(drop), tilt: k > 0.5 ? 1 : 0, glow: false,
+        visor: red ? "#ff6b6b" : m.base.visor, led: red ? "#ff6b6b" : m.base.led,
         near: mixArm(m.base.near, wiping ? wipe : arm([4, -38], [8, -33]), k),
         far: mixArm(m.base.far, arm([3, -38], [7, -33]), k),
       });
     },
     props: (p, m, pose) => {
+      if (m.u > 0.08 && m.u < 0.9) {
+        // The monitor goes red with an X, like the green tick when tests pass.
+        p.rect(24, -56, 23, 19, "#3a1014");
+        for (let i = 0; i < 4; i++) p.rect(26, -54 + i * 3, 6 + ((i * 7) % 9), 1, "#ff6b6b");
+        cross(p, 37, -47, "#ffc2c2");
+      }
       if (m.u < 0.25 || m.u > 0.8) return;
       // A bead of sweat running down the side of its head.
       p.rect(-9, -60 + pose.bob + Math.floor((m.t * 14) % 9), 1, 2, "#8fc9ff");

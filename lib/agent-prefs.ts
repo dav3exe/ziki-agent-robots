@@ -7,7 +7,8 @@ import type { MoodPace } from "@/components/agents/moods";
 export type AgentPrefs = { on: boolean; hidden: string[]; moods: MoodPace };
 
 const KEY = "ziki-mock-agents";
-const DEFAULT: AgentPrefs = { on: true, hidden: [], moods: "lively" };
+// First visit shows two agents, one at each end; the rest can be ticked on in the Agents menu.
+const DEFAULT: AgentPrefs = { on: true, hidden: ["smithy", "nova"], moods: "lively" };
 const listeners = new Set<() => void>();
 let cache: AgentPrefs | null = null;
 
