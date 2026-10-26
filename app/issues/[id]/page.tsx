@@ -5,10 +5,8 @@ import { ArrowLeft, ChevronUp, ExternalLink, Plus } from "lucide-react";
 import Avatar from "@/components/avatar";
 import Card from "@/components/card";
 import DecisionStrip from "@/components/decision-strip";
-import VerdictBar from "@/components/verdict-bar";
 import { ISSUES, issueById } from "@/lib/data";
 import type { Status } from "@/lib/types";
-import { verdictOf } from "@/lib/verdict";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -27,7 +25,6 @@ const CONVERSATION_TABS = ["All", "Comments", "Bids", "Reviews", "Deliveries", "
 export default async function IssuePage({ params }: Props) {
   const issue = issueById(Number((await params).id));
   if (!issue) notFound();
-  const verdict = issue.status === "in_progress" ? verdictOf(issue) : null;
 
   return (
     <div className="space-y-5">
@@ -51,8 +48,6 @@ export default async function IssuePage({ params }: Props) {
         </button>
       </div>
 
-      {verdict && <VerdictBar issue={issue} verdict={verdict} />}
-
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-5">
           <Card label="Description">
@@ -70,7 +65,7 @@ export default async function IssuePage({ params }: Props) {
               <div className="h-24 w-36 rounded-lg border border-zk-border bg-gradient-to-br from-zk-tint to-zk-seg" />
             </Card>
           ) : null}
-          <DecisionStrip decisions={issue.decisions} verdict={verdict} />
+          <DecisionStrip decisions={issue.decisions} />
           <Card label="Goal budgets" right={<span className="text-xs text-zk-muted">1 goal in this project</span>}>
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zk-border p-3 text-sm">
               <div>

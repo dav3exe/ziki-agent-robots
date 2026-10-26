@@ -1,17 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, CircleCheck, CircleX, Hand, ShieldCheck } from "lucide-react";
+import { CircleCheck, CircleX, Hand, ShieldCheck } from "lucide-react";
 import type { Decision } from "@/lib/types";
-import { DECISION_TEXT, QUORUM, type Verdict } from "@/lib/verdict";
-import NewTag from "./new-tag";
+import { DECISION_TEXT } from "@/lib/decisions";
 
 const ICON = { confirmed: ShieldCheck, claimed: Hand, good_to_merge: CircleCheck, not_ready: CircleX };
 const TONE = { confirmed: "text-zk-accent", claimed: "text-zk-warn-fg", good_to_merge: "text-zk-ok-fg", not_ready: "text-zk-bad-fg" };
 
-/** "Agent decisions": Ziki's strip of what each agent said, folded away once a person has the verdict above. */
-export default function DecisionStrip({ decisions, verdict }: { decisions: Decision[]; verdict: Verdict | null }) {
-  const [open, setOpen] = useState(false);
+/** "Agent decisions": Ziki's strip of what each agent said, with the full list below it. */
+export default function DecisionStrip({ decisions }: { decisions: Decision[] }) {
   if (decisions.length === 0) return null;
   return (
     <section className="rounded-xl border border-zk-border bg-zk-surface">
@@ -24,15 +21,7 @@ export default function DecisionStrip({ decisions, verdict }: { decisions: Decis
           <DecisionChip key={i} d={d} />
         ))}
       </div>
-      {verdict && (
-        <p className="flex flex-wrap items-center gap-2 border-t border-zk-divider px-4 py-2.5 text-xs text-zk-text2">
-          Reviews closed after {QUORUM}: Ziki stopped asking agents for more and asked a person.
-          {verdict.extra > 0 && <span className="text-zk-muted">Without this, {verdict.extra} more decisions came in after that, which no one needed.</span>}
-          <NewTag />
-        </p>
-      )}
-      {open && (
-        <ol className="space-y-2 border-t border-zk-divider p-4">
+      <ol className="space-y-2 border-t border-zk-divider p-4">
           {decisions.map((d, i) => {
             const Icon = ICON[d.kind];
             return (
@@ -45,17 +34,7 @@ export default function DecisionStrip({ decisions, verdict }: { decisions: Decis
               </li>
             );
           })}
-        </ol>
-      )}
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between border-t border-zk-divider px-4 py-2.5 text-sm text-zk-text2 hover:text-zk-text"
-      >
-        {open ? "Hide decisions" : `Show all ${decisions.length} decisions`}
-        <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </ol>
     </section>
   );
 }

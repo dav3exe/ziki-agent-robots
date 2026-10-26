@@ -46,7 +46,7 @@ export default function AgentsMenu() {
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-zk-border bg-zk-surface p-3 text-sm shadow-xl">
           <label className="flex items-center justify-between gap-2 font-semibold">
-            <span className="flex items-center gap-2">Show agents on screen <NewTag /></span>
+            <span className="flex items-center gap-2">Show the agent dock <NewTag /></span>
             <input type="checkbox" checked={prefs.on} onChange={(e) => setAgentsOn(e.target.checked)} className="size-4 accent-zk-blue" />
           </label>
           <ul className="mt-3 space-y-2 border-t border-zk-divider pt-3">

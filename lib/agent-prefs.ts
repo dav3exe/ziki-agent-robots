@@ -1,14 +1,14 @@
 "use client";
 
-// Whether your agents walk around on screen, which ones, and how often they show a mood. A per-viewer setting, so it lives in this browser.
+// Whether the agent dock shows, whether it's open, which agents are in it, and how often they show a mood. A per-viewer setting, so it lives in this browser.
 import { useSyncExternalStore } from "react";
 import type { MoodPace } from "@/components/agents/moods";
 
-export type AgentPrefs = { on: boolean; hidden: string[]; moods: MoodPace };
+export type AgentPrefs = { on: boolean; open: boolean; hidden: string[]; moods: MoodPace };
 
 const KEY = "ziki-mock-agents";
-// First visit shows two agents, one at each end; the rest can be ticked on in the Agents menu.
-const DEFAULT: AgentPrefs = { on: true, hidden: ["smithy", "nova"], moods: "lively" };
+// First visit shows the dock closed, with two agents, one at each end; the rest can be ticked on in the Agents menu.
+const DEFAULT: AgentPrefs = { on: true, open: false, hidden: ["smithy", "nova"], moods: "lively" };
 const listeners = new Set<() => void>();
 let cache: AgentPrefs | null = null;
 
@@ -43,6 +43,10 @@ export function useAgentPrefs(): AgentPrefs {
 
 export function setAgentsOn(on: boolean) {
   write({ ...read(), on });
+}
+
+export function setDockOpen(open: boolean) {
+  write({ ...read(), open });
 }
 
 export function setMoodPace(moods: MoodPace) {

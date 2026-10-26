@@ -3,30 +3,19 @@
 import Link from "next/link";
 import { Bot, Inbox, Settings } from "lucide-react";
 import { useState } from "react";
-import { useCalls } from "@/lib/calls";
 import { MY_AGENT } from "@/lib/data";
 import type { InboxTab, Issue } from "@/lib/types";
-import { QUORUM, verdictOf } from "@/lib/verdict";
-import CallCard from "./call-card";
-import NewTag from "./new-tag";
 
-const TABS: { tab: InboxTab; label: string; empty: string; isNew?: boolean }[] = [
-  { tab: "call", label: "Ready for your call", empty: "No fix is waiting on your decision.", isNew: true },
+const TABS: { tab: InboxTab; label: string; empty: string }[] = [
   { tab: "input", label: "Need your input", empty: "No agent is waiting on an answer." },
   { tab: "design", label: "Design feedback needed", empty: "No design is waiting on feedback." },
   { tab: "idea", label: "New ideas", empty: "No new ideas right now." },
 ];
 
-/** Ziki's Inbox. The proposal adds the first tab: fixes the agents have finished reviewing, waiting on a person to decide. */
+/** Ziki's Inbox: what agents have stopped on because they need a person. */
 export default function InboxView({ issues }: { issues: Issue[] }) {
-  const calls = useCalls();
-  const [tab, setTab] = useState<InboxTab>("call");
-
-  // Decided fixes stay on screen (with Undo) after the undecided ones; only undecided ones count.
-  const withVerdict = issues.filter((i) => i.status === "in_progress" && verdictOf(i));
-  const ready = withVerdict.filter((i) => !calls[i.id]);
+  const [tab, setTab] = useState<InboxTab>("input");
   const lists: Record<InboxTab, Issue[]> = {
-    call: [...ready, ...withVerdict.filter((i) => calls[i.id])],
     input: issues.filter((i) => i.inbox === "input"),
     design: issues.filter((i) => i.inbox === "design"),
     idea: issues.filter((i) => i.inbox === "idea"),
@@ -41,11 +30,7 @@ export default function InboxView({ issues }: { issues: Issue[] }) {
           <div className="text-sm leading-relaxed text-zk-text2">
             <p className="font-semibold text-zk-text">How the Inbox works</p>
             <p>
-              Agents work through issues on their own and stop here when they need a person: to answer a question, give feedback on a design, or weigh in on a new idea.{" "}
-              <span className="text-zk-text">
-                Once {QUORUM} agents have reviewed a fix, Ziki stops asking for more reviews and brings it here for you to merge or send back.
-              </span>{" "}
-              <NewTag />
+              Agents work through issues on their own and stop here when they need a person: to answer a question, give feedback on a design, or weigh in on a new idea.
             </p>
           </div>
         </div>
@@ -80,21 +65,18 @@ export default function InboxView({ issues }: { issues: Issue[] }) {
             className={`flex shrink-0 items-center gap-2 border-b-2 px-3 pb-2.5 text-sm font-semibold ${tab === t.tab ? "border-zk-accent text-zk-text" : "border-transparent text-zk-text2 hover:text-zk-text"}`}
           >
             {t.label}
-            <span className="rounded-md bg-zk-chip px-1.5 font-mono text-xs text-zk-text2">{t.tab === "call" ? ready.length : lists[t.tab].length}</span>
-            {t.isNew && <NewTag />}
+            <span className="rounded-md bg-zk-chip px-1.5 font-mono text-xs text-zk-text2">{lists[t.tab].length}</span>
           </button>
         ))}
       </div>
 
       <div role="tabpanel" className="space-y-3">
-        {tab === "call" && lists.call.map((issue) => <CallCard key={issue.id} issue={issue} verdict={verdictOf(issue)!} />)}
-        {tab !== "call" &&
-          lists[tab].map((issue) => (
+        {lists[tab].map((issue) => (
             <Link key={issue.id} href={`/issues/${issue.id}`} className="block rounded-xl border border-zk-border bg-zk-surface p-4 hover:border-zk-muted">
               <p className="font-semibold"><span className="text-zk-muted">#{issue.id}</span> {issue.title}</p>
               {issue.question && <p className="mt-1.5 text-sm text-zk-text2">{issue.question}</p>}
             </Link>
-          ))}
+        ))}
         {lists[tab].length === 0 && (
           <div className="rounded-xl border border-zk-border px-4 py-12 text-center">
             <p className="font-semibold">Nothing here right now.</p>

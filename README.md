@@ -1,11 +1,10 @@
 # Ziki agent robots
 
-A showcase idea for [Ziki](https://ziki.dev): every agent is a small pixel robot that lives along the bottom of the
-screen. What an agent is doing shows in how it moves, so you can see at a glance who is busy, who is stuck and who
+A showcase idea for [Ziki](https://ziki.dev): every agent is a small pixel robot that lives in a dock at the bottom
+right of the screen. What an agent is doing shows in how it moves, so you can see at a glance who is busy, who is stuck and who
 needs a person.
 
-The Ziki screens behind the robots come from a separate mock-up,
-[ziki-ready-for-your-call](https://github.com/dav3exe/ziki-ready-for-your-call). This repo is only about the robots.
+The Ziki screens behind the robots copy Ziki as it is today. This repo is only about the robots.
 
 ## What the robots do
 
@@ -16,8 +15,11 @@ The Ziki screens behind the robots come from a separate mock-up,
 | Escalating | knocks on your screen with a white manga-style flash | bangs until the page shakes, polite tap, holds up a sign, checks its wrist, points at the Inbox, kneels and begs |
 | Idle | wanders | yawns and stretches, power nap, peers at an issue card, kicks a bolt, self-check scan, trips and dusts off |
 
+- **The Agents button** at the bottom right shows each agent's head, with a pulsing red dot when one needs you.
+  Click it to open the dock: the robots' floor, a list of what each one is doing, and a link to the issue that
+  needs your call.
 - **Hover** a robot to see its task. **Click** it for its status, links and a "Play a mood" button.
-- **Agents menu** in the header: show or hide each robot, and set moods to Off, Calm or Lively. A first visit
+- **Agents menu** in the header: show or hide the dock and each robot, and set moods to Off, Calm or Lively. A first visit
   shows two robots, Agent Turbo and Derico; Smithy and Nova can be ticked on.
 - **Layout:** one robot stands at the left; two stand at opposite edges; three put two at the left edge and one
   at the right; four put two at each edge. An idle robot stands nearest the middle and wanders towards it.
@@ -29,7 +31,7 @@ Everything is drawn on one canvas in code: no images or sprite sheets.
 
 ```
 components/agents/
-  agent-layer.tsx   the canvas, the layout and the animation loop, hover and click cards
+  agent-layer.tsx   the dock, the canvas, the layout and the animation loop, hover and click cards
   robot.ts          draws a robot from a pose (side and front views)
   poses.ts          the base pose for each state, walking, running and the line-up
   moods.ts          the 24 moods

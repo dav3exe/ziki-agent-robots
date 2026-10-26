@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import ResetDemo from "@/components/reset-demo";
 
 export const metadata: Metadata = { title: "Ziki agent robots · About this idea" };
 
@@ -33,8 +32,8 @@ export default function ProposalPage() {
 
       <header className="space-y-3">
         <p className="text-xs font-bold tracking-wider text-zk-accent uppercase">Ziki idea · agent visualization</p>
-        <h1 className="font-display text-3xl font-extrabold text-zk-text sm:text-4xl">Your agents, at work along the bottom of the screen</h1>
-        <p className="text-lg">Each Ziki agent is a small pixel robot. What it is doing shows in how it moves, so you can tell at a glance who is busy, who is stuck and who needs you.</p>
+        <h1 className="font-display text-3xl font-extrabold text-zk-text sm:text-4xl">Your agents, at work in a corner of the screen</h1>
+        <p className="text-lg">Each Ziki agent is a small pixel robot in a dock at the bottom right. What it is doing shows in how it moves, so you can tell at a glance who is busy, who is stuck and who needs you.</p>
       </header>
 
       <section className="space-y-2">
@@ -60,16 +59,16 @@ export default function ProposalPage() {
       <section className="space-y-2">
         <h2 className="font-display text-xl font-bold text-zk-text">Try it</h2>
         <ul className="list-disc space-y-1 pl-5">
+          <li><b className="text-zk-text">The Agents button</b> at the bottom right shows each agent’s head. A red dot pulses when one needs you. Click it to open the dock and see them at work.</li>
           <li><b className="text-zk-text">Hover a robot</b> to see its task. <b className="text-zk-text">Click it</b> for its status, links and a “Play a mood” button.</li>
-          <li><b className="text-zk-text">Agents menu</b> in the header: show or hide each robot, and set moods to Off, Calm or Lively.</li>
+          <li><b className="text-zk-text">Agents menu</b> in the header: show or hide the dock and each robot, and set moods to Off, Calm or Lively.</li>
           <li><b className="text-zk-text">Two robots to start</b>, one at each edge. Tick Smithy and Nova on in the Agents menu: with three, two stand at the left edge and one at the right; with four, two stand at each edge.</li>
           <li><b className="text-zk-text">Far moves are a run</b>, not a slow walk, so robots never take long to reach their place.</li>
         </ul>
       </section>
 
       <footer className="space-y-2 border-t border-zk-divider pt-5 text-sm">
-        <p>This is a front-end showcase with made-up data, drawn on a canvas with no images. Your settings and any calls you make are kept in this browser only.</p>
-        <ResetDemo />
+        <p>This is a front-end showcase with made-up data, drawn on a canvas with no images. Your settings are kept in this browser only.</p>
       </footer>
     </article>
   );

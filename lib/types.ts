@@ -24,8 +24,8 @@ export type Comment = {
   body: string;
 };
 
-/** Where an issue waits in the Inbox. "call" is the new tab this proposal adds. */
-export type InboxTab = "call" | "input" | "design" | "idea";
+/** Where an issue waits in the Inbox. */
+export type InboxTab = "input" | "design" | "idea";
 
 export type Issue = {
   id: number;
@@ -48,9 +48,7 @@ export type Issue = {
   pr?: string;
   decisions: Decision[];
   conversation: Comment[];
-  /** Existing Inbox tabs (questions, design feedback, ideas). */
-  inbox?: Exclude<InboxTab, "call">;
+  /** The Inbox tab it waits in (questions, design feedback, ideas). */
+  inbox?: InboxTab;
   question?: string;
-  /** How long the issue has waited on a person since the agents reached a verdict. */
-  waitingFor?: string;
 };

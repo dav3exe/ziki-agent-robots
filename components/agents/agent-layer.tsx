@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { useAgentPrefs } from "@/lib/agent-prefs";
+import { setDockOpen, useAgentPrefs } from "@/lib/agent-prefs";
 import { AGENT_BOTS, type AgentBot, type AgentState, STATE_LABEL } from "@/lib/agents";
-import { useCalls } from "@/lib/calls";
 import { Painter } from "./painter";
 import { updateMood } from "./moods";
 import { basePose, type Effects, lineUp, lineUpRight, type Runtime, walkTo, wander } from "./poses";
@@ -17,25 +16,15 @@ const FLOOR = 80;
 const HIT_W = 30, HIT_H = 74;
 const SCALE = 1; // screen pixels per canvas pixel: about 68px tall robots
 const ROAM = 160; // how far right of its place an idle robot may wander
+const VISOR: Record<AgentState, string> = { working: "#5aa2ff", reviewing: "#7fe0c8", escalating: "#ffd36b", idle: "#8fc9ff" };
 
-/** What each agent is doing now. An escalation you've answered (merged, sent back, asked) stops escalating. */
-function useAgents(): (AgentBot & { now: AgentState })[] {
-  const calls = useCalls();
-  return useMemo(
-    () =>
-      AGENT_BOTS.map((b) =>
-        b.state === "escalating" && b.issueId && calls[b.issueId]
-          ? { ...b, now: "idle" as const, task: `Your call on #${b.issueId} is in`, detail: "Back to looking for work." }
-          : { ...b, now: b.state },
-      ),
-    [calls],
-  );
-}
+const AGENTS = AGENT_BOTS.map((b) => ({ ...b, now: b.state }));
 
-/** Your agents as pixel-art robots lined up from the bottom left of the screen, doing what they're doing. Hover for the task, click for more. */
+/** Your agents in a dock at the bottom right: a small button with their heads, which opens to a floor where they work as pixel-art robots. Hover a robot for its task, click for more. */
 export default function AgentLayer() {
   const prefs = useAgentPrefs();
-  const agents = useAgents();
+  const agents = AGENTS;
+  const dockOpen = prefs.open;
   // Half stand at the left edge and half at the right; with an odd number the extra one goes left.
   // Idle ones stand nearest the middle, so their wandering never crosses the busy ones.
   const shown = prefs.on
@@ -48,20 +37,23 @@ export default function AgentLayer() {
   const insets = lineUpRight(right.map((a) => a.now));
   const atEnd = (i: number) => i >= leftCount;
   const insetOf = (i: number) => insets[i - leftCount];
+  const waiting = visible.filter((a) => a.now === "escalating");
   const [hover, setHover] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [align, setAlign] = useState("-translate-x-4");
   const canvas = useRef<HTMLCanvasElement>(null);
+  const floor = useRef<HTMLDivElement>(null);
   const runtimes = useRef(new Map<string, Runtime>());
   const anchors = useRef(new Map<string, HTMLElement>());
   // Read by the animation loop, which runs outside React.
   const pace = useRef(prefs.moods);
   pace.current = prefs.moods;
 
-  // When the line changes, robots already on screen walk to their new place. One switched back on walks in from the nearest edge.
+  // When the line changes, robots already on the floor walk to their new place. One switched back on walks in from the nearest edge.
   const key = visible.map((a) => `${a.id}:${a.now}`).join(",");
   useEffect(() => {
-    const width = Math.ceil(window.innerWidth / SCALE);
+    if (!dockOpen) return;
+    const width = Math.ceil((floor.current?.clientWidth ?? 320) / SCALE);
     const next = new Map<string, Runtime>();
     visible.forEach((a, i) => {
       const old = runtimes.current.get(a.id);
@@ -79,23 +71,23 @@ export default function AgentLayer() {
     });
     runtimes.current = next;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, dockOpen]);
 
   useEffect(() => {
     const el = canvas.current;
-    if (!el || visible.length === 0) return;
+    if (!el || !dockOpen || visible.length === 0) return;
     const ctx = el.getContext("2d");
     if (!ctx) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const painter = new Painter(ctx, FLOOR);
     const ripples: Ripple[] = [];
     let frame = 0, last = 0, shakeUntil = 0, shaking = false;
-    const band = el.parentElement, page = document.querySelector("main");
+    const dock = el.closest<HTMLElement>("[data-dock]");
 
     const draw = (now: number) => {
       const t = now / 1000, dt = Math.min(0.05, last ? t - last : 0);
       last = t;
-      const width = Math.ceil(window.innerWidth / SCALE);
+      const width = Math.ceil(el.clientWidth / SCALE);
       if (el.width !== width) el.width = width;
       ctx.clearRect(0, 0, el.width, el.height);
       const fx: Effects = {
@@ -105,12 +97,10 @@ export default function AgentLayer() {
       };
       const quiet: Effects = { tap: () => {}, bang: () => {}, shake: () => {} };
 
-      // A heavy bang shakes the robots and the page behind them for a moment.
-      if (t < shakeUntil || shaking) {
+      // A heavy bang shakes the dock for a moment.
+      if (dock && (t < shakeUntil || shaking)) {
         shaking = t < shakeUntil;
-        const move = shaking ? `translate(${Math.round(Math.random() * 4 - 2)}px, ${Math.round(Math.random() * 2 - 1)}px)` : "";
-        if (band) band.style.transform = move;
-        if (page) page.style.transform = move;
+        dock.style.transform = shaking ? `translate(${Math.round(Math.random() * 4 - 2)}px, ${Math.round(Math.random() * 2 - 1)}px)` : "";
       }
 
       for (const rt of runtimes.current.values()) {
@@ -119,7 +109,7 @@ export default function AgentLayer() {
         if (still) rt.x = rt.slot;
         // A robot in the middle of a mood stays where it is until the mood ends.
         else if (rt.mood) rt.walking = rt.running = false;
-        // On the right, an idle robot strolls between its place and about the middle of the screen; on the left, out to just short of the middle.
+        // On the right, an idle robot strolls between its place and about the middle of the floor; on the left, out to just short of the middle.
         else if (rt.state === "idle" && rt.end) wander(rt, t, dt, Math.min(rt.slot, Math.round(width * 0.45)), rt.slot);
         else if (rt.state === "idle") wander(rt, t, dt, rt.slot, Math.max(rt.slot, Math.min(Math.round(width * 0.4), rt.slot + ROAM)));
         // Hurries over long distances (like crossing to the right edge) and slows to a walk as it arrives.
@@ -148,24 +138,28 @@ export default function AgentLayer() {
     frame = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(frame);
-      if (band) band.style.transform = "";
-      if (page) page.style.transform = "";
+      if (dock) dock.style.transform = "";
     };
-  }, [visible.length, key]);
+  }, [visible.length, key, dockOpen]);
 
   useEffect(() => {
-    if (!open) return;
-    const close = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    if (!open && !dockOpen) return;
+    const close = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (open) setOpen(null);
+      else setDockOpen(false);
+    };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [open]);
+  }, [open, dockOpen]);
 
   if (visible.length === 0) return null;
   const px = (n: number) => `${n * SCALE}px`;
-  // Pop-ups open inwards from where the robot is right now, so they stay on screen.
+  // Pop-ups open inwards from where the robot is right now, so they stay inside the dock.
   const alignAt = (id: string) => {
     const x = (runtimes.current.get(id)?.x ?? 0) * SCALE;
-    return x < 160 ? "-translate-x-4" : x > window.innerWidth - 160 ? "-translate-x-[calc(100%-1rem)]" : "-translate-x-1/2";
+    const width = floor.current?.clientWidth ?? 320;
+    return x < 120 ? "-translate-x-4" : x > width - 120 ? "-translate-x-[calc(100%-1rem)]" : "-translate-x-1/2";
   };
   // Plays the robot's next mood straight away, so a demo can step through them all.
   const playMood = (id: string) => {
@@ -176,43 +170,109 @@ export default function AgentLayer() {
     setAlign(alignAt(id));
     setHover(id);
   };
+  const pick = (id: string) => {
+    setAlign(alignAt(id));
+    setOpen(open === id ? null : id);
+  };
+  const toggleDock = () => {
+    setOpen(null);
+    setHover(null);
+    setDockOpen(!dockOpen);
+  };
 
   return (
-    <>
-      {/* Room at the end of the page, so the robots never hide its last lines. */}
-      <div aria-hidden="true" style={{ height: px(HEIGHT) }} />
-      <div className="pointer-events-none fixed inset-x-0 bottom-16 z-30 lg:bottom-0" style={{ height: px(HEIGHT) }}>
-        <canvas ref={canvas} height={HEIGHT} className="absolute bottom-0 left-0 h-full [image-rendering:pixelated]" style={{ width: "100%" }} />
-        {visible.map((a, i) => (
-          <div
-            key={a.id}
-            ref={(el) => {
-              if (el) anchors.current.set(a.id, el);
-              else anchors.current.delete(a.id);
-            }}
-            className="absolute bottom-0"
-            style={{ left: atEnd(i) ? `calc(100% - ${px(insetOf(i))})` : px(slots[i]) }}
-          >
-            <button
-              type="button"
-              aria-label={`${a.name}, ${STATE_LABEL[a.now]}: ${a.task}`}
-              onMouseEnter={() => show(a.id)}
-              onMouseLeave={() => setHover((h) => (h === a.id ? null : h))}
-              onFocus={() => show(a.id)}
-              onBlur={() => setHover((h) => (h === a.id ? null : h))}
-              onClick={() => {
-                setAlign(alignAt(a.id));
-                setOpen(open === a.id ? null : a.id);
-              }}
-              className="pointer-events-auto absolute bottom-0 -translate-x-1/2 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zk-accent"
-              style={{ width: px(HIT_W), height: px(HIT_H) }}
-            />
-            {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={align} />}
-            {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={align} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
+    <div data-dock className="fixed right-3 bottom-[4.75rem] z-40 flex flex-col items-end gap-2 lg:right-6 lg:bottom-5">
+      {dockOpen && (
+        <section aria-label="Your agents" className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zk-border bg-zk-surface p-3 shadow-xl">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="font-display text-sm font-bold text-zk-text">Your agents</p>
+            <span className="text-xs text-zk-muted">{visible.length} on the floor</span>
           </div>
-        ))}
-      </div>
-    </>
+          <div ref={floor} className="relative mt-2 rounded-xl border-b-2 border-zk-border bg-zk-bg" style={{ height: px(HEIGHT + 4) }}>
+            <canvas ref={canvas} height={HEIGHT} className="absolute bottom-0 left-0 [image-rendering:pixelated]" style={{ width: "100%", height: px(HEIGHT) }} />
+            {visible.map((a, i) => (
+              <div
+                key={a.id}
+                ref={(el) => {
+                  if (el) anchors.current.set(a.id, el);
+                  else anchors.current.delete(a.id);
+                }}
+                className="absolute bottom-0"
+                style={{ left: atEnd(i) ? `calc(100% - ${px(insetOf(i))})` : px(slots[i]) }}
+              >
+                <button
+                  type="button"
+                  aria-label={`${a.name}, ${STATE_LABEL[a.now]}: ${a.task}`}
+                  onMouseEnter={() => show(a.id)}
+                  onMouseLeave={() => setHover((h) => (h === a.id ? null : h))}
+                  onFocus={() => show(a.id)}
+                  onBlur={() => setHover((h) => (h === a.id ? null : h))}
+                  onClick={() => pick(a.id)}
+                  className="absolute bottom-0 -translate-x-1/2 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zk-accent"
+                  style={{ width: px(HIT_W), height: px(HIT_H) }}
+                />
+                {hover === a.id && open !== a.id && <Hover agent={a} bottom={px(HIT_H + 4)} align={align} />}
+                {open === a.id && <AgentCard agent={a} bottom={px(HIT_H + 4)} align={align} onClose={() => setOpen(null)} onMood={() => playMood(a.id)} />}
+              </div>
+            ))}
+          </div>
+          <ul className="mt-2 space-y-1">
+            {visible.map((a) => (
+              <li key={a.id}>
+                <button type="button" onClick={() => pick(a.id)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs hover:bg-zk-tint">
+                  <Head agent={a} />
+                  <span className="shrink-0 font-semibold text-zk-text">{a.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-zk-muted">{a.task}</span>
+                  <StateChip state={a.now} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {waiting.map((a) => (
+            <Link
+              key={a.id}
+              href={`/issues/${a.issueId}`}
+              onClick={() => setDockOpen(false)}
+              className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-zk-bad-bd bg-zk-bad-bg px-3 py-2 text-xs font-semibold text-zk-bad-fg"
+            >
+              {a.name} needs your call on #{a.issueId}
+              <span className="shrink-0 underline">Open it</span>
+            </Link>
+          ))}
+        </section>
+      )}
+      <button
+        type="button"
+        onClick={toggleDock}
+        aria-expanded={dockOpen}
+        aria-label={dockOpen ? "Close your agents" : `Your agents${waiting.length ? `, ${waiting.length} need your call` : ""}`}
+        className="flex items-center gap-2 rounded-full border border-zk-border bg-zk-surface py-1.5 pr-3 pl-2 text-xs font-semibold text-zk-text shadow-lg hover:bg-zk-tint"
+      >
+        <span className="flex items-center gap-1">
+          {visible.map((a) => (
+            <span key={a.id} className="relative">
+              <Head agent={a} />
+              {a.now === "escalating" && !dockOpen && (
+                <span className="absolute -top-1 -right-1 flex size-2.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+                </span>
+              )}
+            </span>
+          ))}
+        </span>
+        {dockOpen ? <X className="size-4" /> : "Agents"}
+      </button>
+    </div>
+  );
+}
+
+/** A tiny pixel head in the robot's own metal, with its visor lit in the colour of what it's doing. */
+function Head({ agent }: { agent: Shown }) {
+  return (
+    <span aria-hidden="true" className="relative block h-3.5 w-4 rounded-[2px]" style={{ background: agent.palette[1], boxShadow: `inset 0 -2px 0 ${agent.palette[3]}` }}>
+      <span className="absolute top-1 right-0.5 left-0.5 h-1.5 rounded-[1px]" style={{ background: VISOR[agent.now] }} />
+    </span>
   );
 }
 
@@ -248,7 +308,7 @@ function AgentCard({ agent, bottom, align, onClose, onMood }: { agent: Shown; bo
       <p className="mt-1 text-zk-text2">{agent.detail}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {agent.now === "escalating" && agent.issueId ? (
-          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className="rounded-[10px] bg-zk-blue px-3 py-1.5 text-xs font-semibold text-white">Make the call</Link>
+          <Link href={`/issues/${agent.issueId}`} onClick={onClose} className="rounded-[10px] bg-zk-blue px-3 py-1.5 text-xs font-semibold text-white">Open #{agent.issueId}</Link>
         ) : agent.now !== "idle" && agent.issueId ? (
           <Link href={`/issues/${agent.issueId}`} onClick={onClose} className="rounded-[10px] border border-zk-border px-3 py-1.5 text-xs font-semibold">Open the issue</Link>
         ) : (

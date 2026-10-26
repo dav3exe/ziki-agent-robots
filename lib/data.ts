@@ -44,7 +44,6 @@ export const ISSUES: Issue[] = [
     type: "Feat", platform: "Desktop", votes: 17, comments: 3, attachments: 1, status: "in_progress", priority: "Medium",
     reporter: "Agada Owoicho", assignee: "Agada Owoicho", workingFor: "3d 7h", createdAgo: "13 hours ago", opened: "Oct 17, 8:57 PM",
     pr: "zedu-neo-hng/clean-zedu-desktop #10",
-    waitingFor: "3d",
     description: desc(
       "Hovering over the notification bell icon does not preview incoming alerts, so people click through just to check recent updates.",
       "Hovering over the bell shows a popover with the 3 most recent notifications: icon, preview text, relative time and an unread dot. Moving away closes it.",
@@ -69,7 +68,6 @@ export const ISSUES: Issue[] = [
     type: "Fix", platform: "Desktop", votes: 25, comments: 2, status: "in_progress", priority: "Medium",
     reporter: "Abdul Jempeji", assignee: "Abdul Jempeji", createdAgo: "13 hours ago", opened: "Oct 25, 9:10 AM",
     pr: "zedu-neo-hng/clean-zedu-desktop #14",
-    waitingFor: "11h",
     description: desc(
       "Pasting an email with a space before or after it makes sign-in and sign-up fail with \"Enter a valid email\".",
       "The email is trimmed before it's checked.",
@@ -87,7 +85,6 @@ export const ISSUES: Issue[] = [
     type: "Fix", platform: "Desktop", votes: 17, comments: 5, status: "in_progress", priority: "Medium",
     reporter: "Ozi Umeoke", assignee: "Ozi Umeoke", workingFor: "4d 14h", createdAgo: "18 hours ago", opened: "Oct 21, 2:30 PM",
     pr: "zedu-neo-hng/clean-zedu-desktop #6",
-    waitingFor: "1d 4h",
     description: desc(
       "The desktop search panel shows the same dummy results whatever you type.",
       "Search calls the backend search API and shows real channels, people and messages.",
