@@ -54,10 +54,28 @@ export function drawRipples(ctx: CanvasRenderingContext2D, ripples: Ripple[], t:
       ripples.splice(i, 1);
       continue;
     }
+    // A short, bright flash where the knuckle lands, to catch the eye, then it fades fast.
+    const cx = Math.round(r.x), cy = Math.round(r.y);
+    if (age < 0.4) {
+      const glow = 1 - age / 0.4;
+      // Round pixel glow: dimmer outside, stronger towards the middle.
+      for (let dy = -6; dy <= 6; dy++) {
+        for (let dx = -7; dx <= 7; dx++) {
+          const d = Math.hypot(dx, dy * 1.2);
+          if (d > 7) continue;
+          ctx.fillStyle = `rgba(${r.rgb},${(glow * (d < 4 ? 0.75 : 0.3)).toFixed(2)})`;
+          ctx.fillRect(cx + dx, cy + dy, 1, 1);
+        }
+      }
+      ctx.fillStyle = `rgba(255,225,220,${glow.toFixed(2)})`;
+      ctx.fillRect(cx - 1, cy - 1, 3, 3);
+      ctx.fillRect(cx - 5, cy, 11, 1);
+      ctx.fillRect(cx, cy - 4, 1, 9);
+    }
     const radius = 2 + age * r.size;
-    ctx.fillStyle = `rgba(${r.rgb},${(0.9 * (1 - age)).toFixed(2)})`;
-    for (let a = 0; a < Math.PI * 2; a += 0.3) {
-      ctx.fillRect(Math.round(r.x + Math.cos(a) * radius), Math.round(r.y + Math.sin(a) * radius * 0.75), 1, 1);
+    ctx.fillStyle = `rgba(${r.rgb},${(1 - age).toFixed(2)})`;
+    for (let a = 0; a < Math.PI * 2; a += 0.22) {
+      ctx.fillRect(Math.round(r.x + Math.cos(a) * radius), Math.round(r.y + Math.sin(a) * radius * 0.75), age < 0.5 ? 2 : 1, 1);
     }
   }
 }

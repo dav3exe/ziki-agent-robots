@@ -6,6 +6,8 @@ export type Runtime = {
   bot: AgentBot;
   state: AgentState;
   x: number;
+  /** Its place in the line; idle ones wander to the right of it. */
+  slot: number;
   dir: 1 | -1;
   walking: boolean;
   target: number;
@@ -30,6 +32,7 @@ const key = (t: number, seed: number) => (Math.sin(t * 13 + seed) > 0 ? 0 : -1);
 export function basePose(rt: Runtime, t: number, fx: Effects): Pose {
   const common = { visor: VISOR[rt.state], led: LED[rt.state], tilt: 0, pan: 0, scan: false, blink: false };
   const seed = rt.x;
+  if (rt.walking) return walkPose(rt, common);
 
   switch (rt.state) {
     case "working":
@@ -61,35 +64,68 @@ export function basePose(rt: Runtime, t: number, fx: Effects): Pose {
       };
     }
     case "idle": {
-      const swing = rt.walking ? Math.sin(rt.phase) : 0;
       const look = Math.sin(t * 0.6 + seed);
       return {
-        ...common, view: "side", dir: rt.dir,
-        bob: rt.walking ? Math.round(Math.abs(Math.sin(rt.phase))) : settle(t, seed),
-        legs: rt.walking ? { kind: "walk", phase: rt.phase } : { kind: "stand" },
-        pan: rt.walking ? 0 : look > 0.5 ? 1 : look < -0.5 ? -1 : 0,
-        near: { elbow: [1 + swing * 3, -37], hand: [2 + swing * 5, -29] },
-        far: { elbow: [1 - swing * 3, -37], hand: [2 - swing * 5, -29] },
+        ...common, view: "side", dir: rt.dir, bob: settle(t, seed), legs: { kind: "stand" },
+        pan: look > 0.5 ? 1 : look < -0.5 ? -1 : 0,
+        near: { elbow: [1, -37], hand: [2, -29] },
+        far: { elbow: [1, -37], hand: [2, -29] },
       };
     }
   }
 }
 
+/** Walking, arms swinging: an idle robot wandering, or any robot moving to its new place in the line. */
+function walkPose(rt: Runtime, common: Pick<Pose, "visor" | "led" | "tilt" | "pan" | "scan" | "blink">): Pose {
+  const swing = Math.sin(rt.phase);
+  return {
+    ...common, view: "side", dir: rt.dir, bob: Math.round(Math.abs(swing)), legs: { kind: "walk", phase: rt.phase },
+    near: { elbow: [1 + swing * 3, -37], hand: [2 + swing * 5, -29] },
+    far: { elbow: [1 - swing * 3, -37], hand: [2 - swing * 5, -29] },
+  };
+}
+
+/** How far each robot and its props reach behind it and in front of it, in canvas pixels. */
+const REACH = { working: [11, 49], reviewing: [11, 29], escalating: [14, 14], idle: [11, 11] } as const;
+const EDGE = 9, GAP = 10;
+
+/** Lines the robots up from the left edge, each beside the one before, so they never sit over the middle of the page. */
+export function lineUp(states: AgentState[]): number[] {
+  let cursor = EDGE;
+  return states.map((s) => {
+    const x = cursor + REACH[s][0];
+    cursor = x + REACH[s][1] + GAP;
+    return x;
+  });
+}
+
+/** Takes one walking step towards a spot, at a stroll unless told otherwise. Returns true once it is there. */
+export function walkTo(rt: Runtime, target: number, dt: number, speed = 11): boolean {
+  const d = target - rt.x;
+  if (Math.abs(d) < 0.5) {
+    rt.x = target;
+    rt.walking = false;
+    return true;
+  }
+  rt.walking = true;
+  rt.dir = d > 0 ? 1 : -1;
+  const step = Math.min(Math.abs(d), speed * dt);
+  rt.x += rt.dir * step;
+  rt.phase += step * 0.3;
+  return false;
+}
+
 /** Moves a wandering robot towards its next spot, at a walking pace, with pauses in between. */
 export function wander(rt: Runtime, t: number, dt: number, left: number, right: number) {
   if (rt.walking) {
-    const d = rt.target - rt.x;
-    rt.dir = d > 0 ? 1 : -1;
-    const step = Math.min(Math.abs(d), 11 * dt);
-    rt.x += rt.dir * step;
-    rt.phase += step * 0.3;
-    if (Math.abs(d) < 0.5) {
-      rt.walking = false;
-      rt.pauseUntil = t + 3 + Math.random() * 3;
-    }
+    if (walkTo(rt, rt.target, dt)) rt.pauseUntil = t + 3 + Math.random() * 3;
   } else if (t > rt.pauseUntil) {
     rt.target = left + Math.random() * (right - left);
     rt.walking = Math.abs(rt.target - rt.x) > 6;
     if (!rt.walking) rt.pauseUntil = t + 2;
+  } else if (rt.x < left || rt.x > right) {
+    // Its place in the line moved: walk back into its range first.
+    rt.target = Math.min(right, Math.max(left, rt.x));
+    rt.walking = true;
   }
 }
