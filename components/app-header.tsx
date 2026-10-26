@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Bot, ChevronDown, Trophy } from "lucide-react";
+import { Bell, ChevronDown, Trophy } from "lucide-react";
 import { ME, PROJECT } from "@/lib/data";
+import AgentsMenu from "./agents/agents-menu";
 import Avatar from "./avatar";
 import ZikiLogo from "./ziki-logo";
 import { SECTIONS } from "./sections";
@@ -36,9 +37,7 @@ export default function AppHeader() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <button type="button" className="hidden items-center gap-1.5 rounded-full border border-zk-border px-4 py-2 text-sm font-semibold sm:flex">
-            <Bot className="size-4 text-zk-accent" /> Agents <ChevronDown className="size-4 text-zk-muted" />
-          </button>
+          <AgentsMenu />
           <button type="button" className="flex items-center gap-2 rounded-full border border-zk-border py-1 pr-3 pl-1 text-sm font-semibold">
             <Avatar name={ME.name} size={32} />
             <span className="hidden sm:inline">{ME.name}</span>

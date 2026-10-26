@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Manrope } from "next/font/google";
+import AgentLayer from "@/components/agents/agent-layer";
 import AppHeader from "@/components/app-header";
 import BottomNav from "@/components/bottom-nav";
 import ProposalLink from "@/components/proposal-link";
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             {children}
           </main>
         </div>
+        <AgentLayer />
         <BottomNav />
         <ProposalLink />
       </body>
